@@ -2222,42 +2222,44 @@ function getSectors() {
   });
 }
 
-// 퀀트 위험지표 자동 감지 엔진 (재무/밸류에이션 기반)
+// 퀀트 위험지표 자동 감지 엔진 (재무/밸류에이션 기반 정량 수치 포함)
 function computeStockWarningBadges(s) {
   const badges = [];
 
   // 1. 고부채 리스크 (부채비율 200% 이상)
   if (typeof s.debtRatio === 'number' && s.debtRatio >= 200) {
     if (s.debtRatio >= 300) {
-      badges.push('초고부채(300%↑)');
+      badges.push(`초고부채(${Math.round(s.debtRatio)}%)`);
     } else {
-      badges.push('고부채(200%↑)');
+      badges.push(`고부채(${Math.round(s.debtRatio)}%)`);
     }
   }
 
   // 2. 이자보상배율 1 미만 (한계기업 위험)
   if (typeof s.interestCoverage === 'number' && s.interestCoverage < 1.0 && s.interestCoverage > 0) {
-    badges.push('이자보상 1 미만');
+    badges.push(`이자보상 부족(${s.interestCoverage.toFixed(1)}배)`);
   }
 
   // 3. 당기순이익 적자 / 영업적자 (ROE < 0 또는 PER < 0)
-  if ((typeof s.roe === 'number' && s.roe < 0) || (typeof s.per === 'number' && s.per < 0)) {
-    badges.push('실적적자');
+  if (typeof s.roe === 'number' && s.roe < 0) {
+    badges.push(`실적적자(ROE ${s.roe.toFixed(1)}%)`);
+  } else if (typeof s.per === 'number' && s.per < 0) {
+    badges.push('실적적자(영업적자)');
   }
 
   // 4. 가치함정 의심 (PBR 0.5 미만인데 ROE가 3% 이하로 극히 낮아 만성 저수익인 경우)
   if (typeof s.pbr === 'number' && s.pbr > 0 && s.pbr < 0.5 && typeof s.roe === 'number' && s.roe <= 3.0) {
-    badges.push('가치함정 의심');
+    badges.push(`가치함정(PBR ${s.pbr.toFixed(2)}/ROE ${s.roe ? s.roe.toFixed(1) : 0}%)`);
   }
 
   // 5. 단기 과열 리스크 (RSI 75 이상)
   if (typeof s.rsi14 === 'number' && s.rsi14 >= 75) {
-    badges.push('과열(RSI 75↑)');
+    badges.push(`과열(RSI ${Math.round(s.rsi14)})`);
   }
 
   // 6. 유동비율 미달 (100% 미만)
   if (typeof s.currentRatio === 'number' && s.currentRatio > 0 && s.currentRatio < 100) {
-    badges.push('유동비율 부족');
+    badges.push(`유동비율 부족(${Math.round(s.currentRatio)}%)`);
   }
 
   // 기존 DB에 저장된 커스텀 배지가 있다면 병합

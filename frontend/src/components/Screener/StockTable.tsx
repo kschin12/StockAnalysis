@@ -167,13 +167,21 @@ export const StockTable: React.FC<StockTableProps> = ({
 
   const handleBadgeMouseEnter = (e: React.MouseEvent, badgeName: string, type: 'risk' | 'momentum') => {
     e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const detail = BADGE_DETAILS[badgeName] || {
-      type,
-      title: badgeName,
-      desc: type === 'risk' ? '재무 건전성 및 밸류에이션 리스크 요인' : '가격 탄력성 및 수급 모멘텀 신호',
-      reason: type === 'risk' ? '퀀트 리스크 감지 기준에 의해 식별됨' : '퀀트 모멘텀 성장 기준에 의해 식별됨'
+    const getDetail = (name: string) => {
+      if (BADGE_DETAILS[name]) return BADGE_DETAILS[name];
+      for (const [key, val] of Object.entries(BADGE_DETAILS)) {
+        const prefix = key.split('(')[0];
+        if (name.startsWith(prefix)) return val;
+      }
+      return {
+        type,
+        title: name,
+        desc: type === 'risk' ? '재무 건전성 및 밸류에이션 리스크 요인' : '가격 탄력성 및 수급 모멘텀 신호',
+        reason: type === 'risk' ? '퀀트 리스크 감지 기준에 의해 식별됨' : '퀀트 모멘텀 성장 기준에 의해 식별됨'
+      };
     };
+    const detail = getDetail(badgeName);
+    const rect = e.currentTarget.getBoundingClientRect();
 
     let x = rect.right + 10;
     let y = rect.top - 10;
