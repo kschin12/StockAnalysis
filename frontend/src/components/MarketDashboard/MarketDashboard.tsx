@@ -44,29 +44,34 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
       {/* Sector Heatmap */}
       <SectorHeatmap sectors={sectors} />
 
-      {/* 2-Column: Momentum Leaders vs Risk Alert Stocks (시장요약과 동일한 프리미엄 뷰) */}
+      {/* 2-Column: Momentum Leaders vs Risk Alert Stocks (좌우 높이 및 각 행 일치) */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-        gap: '16px'
+        gap: '16px',
+        alignItems: 'stretch'
       }}>
         {/* 오늘의 퀀트 모멘텀 주도주 */}
-        <div className="glass-card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="glass-card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '24px' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#818cf8' }}>
               오늘의 퀀트 모멘텀 주도주
             </h3>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>신고가 / 강세 추세</span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
             {momentumLeaders.length > 0 ? (
               momentumLeaders.map(stk => (
                 <div
                   key={stk.symbol}
                   onClick={() => onSelectStock(stk.symbol)}
                   style={{
-                    padding: '10px 12px',
+                    height: '58px',
+                    minHeight: '58px',
+                    maxHeight: '58px',
+                    boxSizing: 'border-box',
+                    padding: '8px 12px',
                     background: 'var(--bg-input)',
                     borderRadius: '6px',
                     border: '1px solid var(--border-subtle)',
@@ -79,19 +84,19 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
                   onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
                 >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
+                  <div style={{ overflow: 'hidden', marginRight: '8px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {stk.name} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({stk.symbol})</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
                       {stk.momentumBadges?.map((b, i) => (
-                        <span key={i} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc' }}>
+                        <span key={i} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', whiteSpace: 'nowrap' }}>
                           {b}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.88rem', color: stk.changeRate >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
                       {stk.changeRate >= 0 ? `+${stk.changeRate.toFixed(2)}%` : `${stk.changeRate.toFixed(2)}%`}
                     </div>
@@ -110,22 +115,26 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
         </div>
 
         {/* 재무 리스크 & 가치함정 주의 종목 */}
-        <div className="glass-card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="glass-card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '24px' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f87171' }}>
               재무 리스크 & 가치함정 주의 종목
             </h3>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>고부채 / 적자 / 과열</span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
             {riskStocks.length > 0 ? (
               riskStocks.map(stk => (
                 <div
                   key={stk.symbol}
                   onClick={() => onSelectStock(stk.symbol)}
                   style={{
-                    padding: '10px 12px',
+                    height: '58px',
+                    minHeight: '58px',
+                    maxHeight: '58px',
+                    boxSizing: 'border-box',
+                    padding: '8px 12px',
                     background: 'var(--bg-input)',
                     borderRadius: '6px',
                     border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -138,19 +147,19 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
                   onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)'}
                 >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
+                  <div style={{ overflow: 'hidden', marginRight: '8px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {stk.name} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({stk.symbol})</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
                       {stk.warningBadges?.map((b, i) => (
-                        <span key={i} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5' }}>
+                        <span key={i} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', whiteSpace: 'nowrap' }}>
                           {b}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.88rem', color: stk.changeRate >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
                       {stk.changeRate >= 0 ? `+${stk.changeRate.toFixed(2)}%` : `${stk.changeRate.toFixed(2)}%`}
                     </div>
