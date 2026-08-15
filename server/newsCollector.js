@@ -248,9 +248,10 @@ async function fetchLiveDartDisclosures() {
 // 전체 실시간 뉴스 & 공시 동기화 실행 함수
 async function syncAllRealNews() {
   console.log('🔄 실시간 실제 뉴스 및 공시 수집 시작...');
-  const dartCount = await fetchLiveDartDisclosures();
+  await new Promise(resolve => db.run('DELETE FROM news', () => resolve()));
   const krCount = await fetchLiveKoreanNews();
   const usCount = await fetchLiveUsNews();
+  const dartCount = await fetchLiveDartDisclosures();
   console.log(`✅ 실시간 뉴스 수집 완료: 국내 ${krCount}건, 미국 ${usCount}건, DART ${dartCount}건`);
   return { krCount, usCount, dartCount, total: krCount + usCount + dartCount };
 }
