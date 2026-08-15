@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Stock } from '../../types/stock';
-import { Download, Star, ArrowUpDown, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, ArrowUpDown, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { exportStocksToCsv } from '../../utils/exportCsv';
 
 interface StockTableProps {
@@ -99,10 +99,10 @@ export const StockTable: React.FC<StockTableProps> = ({
           </span>
           {activeCategory && (
             <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontSize: '0.75rem' }}>
-              {activeCategory === 'market_cap' && '🏆 시가총액 순 정렬'}
-              {activeCategory === 'volume' && '📊 실시간 거래량 순 정렬'}
-              {activeCategory === 'rise' && '🚀 당일 급등률 순 정렬'}
-              {activeCategory === 'watchlist' && '⭐ 관심종목 목록'}
+              {activeCategory === 'market_cap' && '시가총액 순 정렬'}
+              {activeCategory === 'volume' && '실시간 거래량 순 정렬'}
+              {activeCategory === 'rise' && '당일 급등률 순 정렬'}
+              {activeCategory === 'watchlist' && '관심종목 목록'}
               {activeCategory === 'all' && '전체 종목'}
             </span>
           )}
@@ -139,10 +139,9 @@ export const StockTable: React.FC<StockTableProps> = ({
           <button
             onClick={() => exportStocksToCsv(sortedStocks)}
             className="btn btn-secondary"
-            style={{ fontSize: '0.82rem' }}
+            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
           >
-            <Download size={14} />
-            CSV(엑셀) 다운로드
+            CSV 다운로드
           </button>
         </div>
       </div>
@@ -224,15 +223,13 @@ export const StockTable: React.FC<StockTableProps> = ({
                   >
                     {/* Rank Number */}
                     <td style={{ padding: '12px 6px', textAlign: 'center' }}>
-                      {rankNum === 1 ? (
-                        <span style={{ color: '#f59e0b', fontWeight: 800, fontSize: '0.85rem' }}>🥇 1</span>
-                      ) : rankNum === 2 ? (
-                        <span style={{ color: '#94a3b8', fontWeight: 800, fontSize: '0.85rem' }}>🥈 2</span>
-                      ) : rankNum === 3 ? (
-                        <span style={{ color: '#b45309', fontWeight: 800, fontSize: '0.85rem' }}>🥉 3</span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>#{rankNum}</span>
-                      )}
+                      <span style={{
+                        color: rankNum === 1 ? '#f59e0b' : rankNum === 2 ? '#94a3b8' : rankNum === 3 ? '#d97706' : 'var(--text-muted)',
+                        fontWeight: rankNum <= 3 ? 800 : 500,
+                        fontSize: '0.82rem'
+                      }}>
+                        {rankNum}
+                      </span>
                     </td>
 
                     {/* Watchlist star */}

@@ -177,35 +177,35 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                 onClick={() => setActiveCategory('market_cap')}
                 style={{ fontSize: '0.82rem', padding: '6px 12px' }}
               >
-                🏆 시총 상위
+                시총 상위
               </button>
               <button 
                 className={`btn ${activeCategory === 'volume' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setActiveCategory('volume')}
                 style={{ fontSize: '0.82rem', padding: '6px 12px' }}
               >
-                🔥 거래량 상위
+                거래량 상위
               </button>
               <button 
                 className={`btn ${activeCategory === 'rise' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setActiveCategory('rise')}
                 style={{ fontSize: '0.82rem', padding: '6px 12px' }}
               >
-                🚀 급등주
+                급등주
               </button>
               <button 
                 className={`btn ${activeCategory === 'watchlist' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setActiveCategory('watchlist')}
                 style={{ fontSize: '0.82rem', padding: '6px 12px' }}
               >
-                ⭐ 내 관심종목
+                관심종목
               </button>
               <button 
                 className={`btn ${activeCategory === 'all' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setActiveCategory('all')}
                 style={{ fontSize: '0.82rem', padding: '6px 12px' }}
               >
-                🌐 전체 종목
+                전체 종목
               </button>
             </div>
 
@@ -224,14 +224,14 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                 style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KRX' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'KRX' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'KRX' ? '#fff' : 'var(--text-secondary)' }}
                 onClick={() => setFilters(prev => ({ ...prev, market: 'KRX' }))}
               >
-                🇰🇷 한국
+                한국
               </button>
               <button
                 className={`badge ${filters.market === 'US' ? 'badge-tag' : ''}`}
                 style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'US' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fff' : 'var(--text-secondary)' }}
                 onClick={() => setFilters(prev => ({ ...prev, market: 'US' }))}
               >
-                🇺🇸 미국
+                미국
               </button>
             </div>
           </div>
@@ -246,7 +246,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
               {activeCategory === 'watchlist' && (
                 <div style={{ padding: '16px 20px', background: 'rgba(30, 41, 59, 0.7)', borderRadius: '10px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>⭐ 관심 종목 직접 등록 (국내 & 미국 실시간 연동)</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>관심 종목 등록 (국내 & 미국 실시간 연동)</span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>예: 미국(AAPL, TSLA, NVDA, PLTR, SPY) / 한국(005930, 000660)</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

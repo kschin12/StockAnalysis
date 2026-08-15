@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { FilterState, CustomPreset } from '../../types/stock';
-import { RotateCcw, Bookmark, Save, Trash2, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 interface FilterPanelProps {
   filters: FilterState;
@@ -35,103 +34,84 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   return (
-    <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="glass-card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Header & Presets */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <SlidersHorizontal size={20} color="var(--color-brand)" />
-          <h3 style={{ fontSize: '1.1rem' }}>퀀트 스크리너 필터 조건</h3>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>필터 조건</h3>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* 전체 종목 원클릭 조회 버튼 */}
-          <button
-            onClick={onResetFilters}
-            className="btn btn-primary"
-            style={{ fontSize: '0.82rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-            title="모든 필터를 해제하고 국내외 28개 전종목을 한눈에 조회합니다."
-          >
-            <span>🌐</span>
-            <strong>전체 종목 한번에 보기</strong>
-          </button>
-
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '6px' }}>추천 프리셋:</span>
-          {presets.map(p => (
-            <button
-              key={p.id}
-              onClick={() => onApplyPreset(p)}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-              title={p.description}
-            >
-              <Sparkles size={12} color="#818cf8" />
-              {p.name}
-              {p.id.startsWith('custom-') && (
-                <Trash2
-                  size={12}
-                  color="#f43f5e"
-                  style={{ marginLeft: '4px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeletePreset(p.id);
-                  }}
-                />
-              )}
-            </button>
-          ))}
-
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setIsSaving(!isSaving)}
             className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '5px 10px' }}
+            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
           >
-            <Bookmark size={13} />
-            현재 조건 저장
+            조건 저장
           </button>
 
           <button
             onClick={onResetFilters}
             className="btn btn-ghost"
-            style={{ fontSize: '0.8rem', padding: '5px 10px' }}
+            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
             title="필터 조건을 초기화합니다."
           >
-            <RotateCcw size={13} />
             초기화
           </button>
         </div>
       </div>
 
+      {/* Preset Buttons Bar */}
+      {presets.length > 0 && (
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>프리셋:</span>
+          {presets.map(p => (
+            <button
+              key={p.id}
+              onClick={() => onApplyPreset(p)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+              title={p.description}
+            >
+              {p.name}
+              {p.id.startsWith('custom-') && (
+                <span
+                  style={{ marginLeft: '4px', color: '#f43f5e', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeletePreset(p.id);
+                  }}
+                >
+                  ×
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Save Preset Form */}
       {isSaving && (
         <form onSubmit={handleSaveSubmit} style={{
-          padding: '14px',
+          padding: '12px',
           background: 'var(--bg-input)',
           borderRadius: 'var(--radius-sm)',
           border: '1px solid var(--border-accent)',
           display: 'flex',
-          gap: '10px',
+          gap: '8px',
           flexWrap: 'wrap',
           alignItems: 'center'
         }}>
           <input
             type="text"
-            placeholder="프리셋 이름 (예: 나만의 퀀트)"
+            placeholder="프리셋 이름"
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
-            style={{ flex: '1 1 200px' }}
+            style={{ flex: '1 1 120px', padding: '6px 10px', fontSize: '0.8rem' }}
             required
           />
-          <input
-            type="text"
-            placeholder="설명 (선택)"
-            value={presetDesc}
-            onChange={(e) => setPresetDesc(e.target.value)}
-            style={{ flex: '2 1 300px' }}
-          />
-          <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px' }}>
-            <Save size={14} /> 저장
+          <button type="submit" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+            저장
           </button>
-          <button type="button" onClick={() => setIsSaving(false)} className="btn btn-ghost">
+          <button type="button" onClick={() => setIsSaving(false)} className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: '0.8rem' }}>
             취소
           </button>
         </form>
