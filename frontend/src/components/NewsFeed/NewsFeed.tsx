@@ -327,15 +327,15 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                   {/* Top Header: 순서 [핵심주요 별표] -> [삼성전자] -> [날짜] */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      {/* 1. 핵심 주요 / 주요 (테두리 및 배경 없이 별표 텍스트만) */}
+                      {/* 1. 중요도 별표 (별표만 표시) */}
                       {isHighImportance && (
-                        <span style={{ color: '#fbbf24', fontWeight: 800, fontSize: '0.8rem', letterSpacing: '-0.01em' }}>
-                          ★ 핵심 주요
+                        <span style={{ color: '#fbbf24', fontWeight: 900, fontSize: '0.95rem' }} title="핵심 주요">
+                          ★
                         </span>
                       )}
                       {isMediumImportance && (
-                        <span style={{ color: '#818cf8', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '-0.01em' }}>
-                          ★ 주요
+                        <span style={{ color: '#818cf8', fontWeight: 900, fontSize: '0.9rem' }} title="주요">
+                          ★
                         </span>
                       )}
 

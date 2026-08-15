@@ -360,13 +360,16 @@ const RICH_INITIAL_NEWS = [
 ];
 
 function getAccurateUrl(item) {
-  if (item.isDisclosure) {
-    return `https://dart.fss.or.kr/dsab007/main.do?option=corp&corpName=${encodeURIComponent(item.companyName || item.symbol || '')}`;
+  if (item.url && item.url.startsWith('https://finance.yahoo.com/news/')) {
+    return item.url;
+  }
+  if (item.symbol && item.symbol.length === 6 && /^\d+$/.test(item.symbol)) {
+    return `https://finance.naver.com/item/news_notice.naver?code=${item.symbol}`;
   }
   if (item.symbol && item.symbol.length <= 5 && !item.symbol.startsWith('0')) {
     return `https://finance.yahoo.com/quote/${item.symbol}/news`;
   }
-  return `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent((item.companyName || '') + ' ' + (item.title || ''))}`;
+  return `https://finance.naver.com/item/news_notice.naver?code=005930`;
 }
 
 // DB에 초기 뉴스 및 공시 데이터 적재
