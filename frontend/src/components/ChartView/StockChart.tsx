@@ -4,7 +4,7 @@ import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightw
 import type { Stock, NewsItem } from '../../types/stock';
 import { fetchStockCandles } from '../../api/stockApi';
 import { generateMockCandles } from '../../mock/stockData';
-import { TrendingUp, TrendingDown, Newspaper, Loader2, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, Newspaper, Loader2 } from 'lucide-react';
 import { getBadgeDetail, calculateBadgeTooltipPosition } from '../../utils/badgeDetails';
 import type { ActiveTooltipState } from '../../utils/badgeDetails';
 import { BadgeTooltipPortal } from '../common/BadgeTooltipPortal';
@@ -360,18 +360,20 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{n.date}</span>
                   </div>
                   <h4 style={{ fontSize: '0.9rem', marginBottom: '4px' }}>
-                    <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                    <a
+                      href={n.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#fff', textDecoration: 'none', transition: 'color 0.15s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-brand)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}
+                    >
                       {n.title}
                     </a>
                   </h4>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                     {n.summary}
                   </p>
-                  <div style={{ marginTop: '8px', textAlign: 'right' }}>
-                    <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--color-brand)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      원문 보기 <ExternalLink size={10} />
-                    </a>
-                  </div>
                 </div>
               ))
             ) : (
