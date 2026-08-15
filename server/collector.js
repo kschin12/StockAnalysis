@@ -633,8 +633,26 @@ async function runDynamicCollection(category, market = 'ALL') {
   }
 
   const placeholders = uniqueSymbols.map(() => '?').join(',');
-  const query = `SELECT * FROM stocks WHERE symbol IN (${placeholders})`;
+  let orderBy = 'marketCap DESC';
+  if (category === 'volume') orderBy = 'volume DESC';
+  else if (category === 'rise') orderBy = 'changeRate DESC';
+
+  const query = `SELECT * FROM stocks WHERE symbol IN (${placeholders}) ORDER BY ${orderBy}`;
   const rows = await dbAllAsync(query, uniqueSymbols);
+
+  // market_rankings 테이블에 카테고리별 1위~50위 캐시 저장
+  try {
+    await dbRunAsync(`DELETE FROM market_rankings WHERE category = ? AND market = ?`, [category, market]);
+    for (let i = 0; i < Math.min(rows.length, 50); i++) {
+      await dbRunAsync(
+        `INSERT OR REPLACE INTO market_rankings (category, market, ranking, symbol, updated_at)
+         VALUES (?, ?, ?, ?, datetime('now', 'localtime'))`,
+        [category, market, i + 1, rows[i].symbol]
+      );
+    }
+  } catch (err) {
+    console.warn('[Collector] Cache market_rankings save warning:', err.message);
+  }
 
   return {
     success: true,
@@ -700,7 +718,25 @@ async function updateStockPrices() {
   return updated;
 }
 
-// 13. 실시간 수집 마스터 실행 함수
+// 13. 전 시장 랭킹 및 시세 정기 자동 수집 (주기적 백그라운드 캐시)
+async function refreshAllRankingsAndSave() {
+  console.log('🔄 [Background Cron] 전 시장 랭킹 및 시세 정기 자동 수집 시작...');
+  try {
+    // 1. 시가총액 상위
+    await runDynamicCollection('market_cap', 'ALL');
+    // 2. 거래량 상위
+    await runDynamicCollection('volume', 'ALL');
+    // 3. 급등주
+    await runDynamicCollection('rise', 'ALL');
+    // 4. 시장 지수 및 환율
+    await updateMarketIndices();
+    console.log('✅ [Background Cron] 전 시장 랭킹 및 시세 정기 갱신 완료!');
+  } catch (err) {
+    console.warn('❌ [Background Cron Warning]', err.message);
+  }
+}
+
+// 14. 실시간 수집 마스터 실행 함수
 async function runRealtimeCollection() {
   console.log('⚡ 실시간 시장 데이터 수집 시작 (국내 지수/종목 + 미국 지수/종목)...');
   const indices = await updateMarketIndices();
@@ -723,6 +759,7 @@ module.exports = {
   syncSingleStock,
   runRealtimeCollection,
   runDynamicCollection,
+  refreshAllRankingsAndSave,
   updateStockPrices,
   updateMarketIndices
 };

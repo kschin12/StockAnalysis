@@ -6,15 +6,17 @@ import { exportStocksToCsv } from '../../utils/exportCsv';
 interface StockTableProps {
   stocks: Stock[];
   watchlist: string[];
+  activeCategory?: string;
   onToggleWatchlist: (symbol: string) => void;
   onSelectStock: (symbol: string) => void;
 }
 
-type SortField = 'name' | 'price' | 'changeRate' | 'marketCap' | 'per' | 'pbr' | 'roe' | 'dividendYield' | 'debtRatio';
+type SortField = 'name' | 'price' | 'changeRate' | 'volume' | 'marketCap' | 'per' | 'pbr' | 'roe' | 'dividendYield' | 'debtRatio';
 
 export const StockTable: React.FC<StockTableProps> = ({
   stocks,
   watchlist,
+  activeCategory,
   onToggleWatchlist,
   onSelectStock
 }) => {
@@ -23,10 +25,24 @@ export const StockTable: React.FC<StockTableProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
 
+  // 카테고리 탭 전환 시 정렬 기준 자동 동기화
+  useEffect(() => {
+    if (activeCategory === 'volume') {
+      setSortField('volume');
+      setSortAsc(false);
+    } else if (activeCategory === 'rise') {
+      setSortField('changeRate');
+      setSortAsc(false);
+    } else if (activeCategory === 'market_cap' || activeCategory === 'all') {
+      setSortField('marketCap');
+      setSortAsc(false);
+    }
+  }, [activeCategory]);
+
   // 종목 리스트나 필터 변경 시 1페이지로 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [stocks.length]);
+  }, [stocks.length, activeCategory]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -38,8 +54,8 @@ export const StockTable: React.FC<StockTableProps> = ({
   };
 
   const sortedStocks = [...stocks].sort((a, b) => {
-    let valA = a[sortField] ?? -999999;
-    let valB = b[sortField] ?? -999999;
+    let valA = a[sortField] ?? -99999999;
+    let valB = b[sortField] ?? -99999999;
     if (typeof valA === 'string') {
       return sortAsc ? (valA as string).localeCompare(valB as string) : (valB as string).localeCompare(valA as string);
     }
@@ -57,6 +73,19 @@ export const StockTable: React.FC<StockTableProps> = ({
     return sortAsc ? <ChevronUp size={14} color="var(--color-brand)" /> : <ChevronDown size={14} color="var(--color-brand)" />;
   };
 
+  const formatVolume = (vol: number | undefined, currency: string) => {
+    if (!vol || vol === 0) return '-';
+    if (currency === 'KRW') {
+      if (vol >= 10000000) return `${(vol / 10000000).toFixed(1)}천만주`;
+      if (vol >= 10000) return `${Math.round(vol / 10000).toLocaleString()}만주`;
+      return `${vol.toLocaleString()}주`;
+    } else {
+      if (vol >= 1000000) return `${(vol / 1000000).toFixed(1)}M`;
+      if (vol >= 1000) return `${(vol / 1000).toFixed(1)}K`;
+      return vol.toLocaleString();
+    }
+  };
+
   return (
     <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Table Action Bar */}
@@ -68,6 +97,15 @@ export const StockTable: React.FC<StockTableProps> = ({
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             ({startIndex + 1} - {endIndex} 표시 중)
           </span>
+          {activeCategory && (
+            <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontSize: '0.75rem' }}>
+              {activeCategory === 'market_cap' && '🏆 시가총액 순 정렬'}
+              {activeCategory === 'volume' && '📊 실시간 거래량 순 정렬'}
+              {activeCategory === 'rise' && '🚀 당일 급등률 순 정렬'}
+              {activeCategory === 'watchlist' && '⭐ 관심종목 목록'}
+              {activeCategory === 'all' && '전체 종목'}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -114,24 +152,30 @@ export const StockTable: React.FC<StockTableProps> = ({
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-              <th style={{ padding: '12px 8px', width: '36px' }}>관심</th>
+              <th style={{ padding: '12px 8px', width: '38px', textAlign: 'center' }}>순위</th>
+              <th style={{ padding: '12px 6px', width: '32px' }}>관심</th>
               <th onClick={() => handleSort('name')} style={{ padding: '12px 10px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   종목명 (코드) {renderSortIcon('name')}
                 </div>
               </th>
-              <th style={{ padding: '12px 8px' }}>구분</th>
+              <th style={{ padding: '12px 8px' }}>시장</th>
               <th onClick={() => handleSort('price')} style={{ padding: '12px 10px', textAlign: 'right', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                   현재가 {renderSortIcon('price')}
                 </div>
               </th>
-              <th onClick={() => handleSort('changeRate')} style={{ padding: '12px 10px', textAlign: 'right', cursor: 'pointer' }}>
+              <th onClick={() => handleSort('changeRate')} style={{ padding: '12px 10px', textAlign: 'right', cursor: 'pointer', color: sortField === 'changeRate' ? 'var(--color-brand)' : 'inherit' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                   등락률 {renderSortIcon('changeRate')}
                 </div>
               </th>
-              <th onClick={() => handleSort('marketCap')} style={{ padding: '12px 10px', textAlign: 'right', cursor: 'pointer' }}>
+              <th onClick={() => handleSort('volume')} style={{ padding: '12px 10px', textAlign: 'right', cursor: 'pointer', color: sortField === 'volume' ? 'var(--color-brand)' : 'inherit' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                  거래량 {renderSortIcon('volume')}
+                </div>
+              </th>
+              <th onClick={() => handleSort('marketCap')} style={{ padding: '12px 10px', textAlign: 'right', cursor: 'pointer', color: sortField === 'marketCap' ? 'var(--color-brand)' : 'inherit' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                   시가총액 {renderSortIcon('marketCap')}
                 </div>
@@ -161,9 +205,10 @@ export const StockTable: React.FC<StockTableProps> = ({
           </thead>
           <tbody>
             {paginatedStocks.length > 0 ? (
-              paginatedStocks.map((stk) => {
+              paginatedStocks.map((stk, idx) => {
                 const isWatch = watchlist.includes(stk.symbol);
                 const isUp = stk.changeRate >= 0;
+                const rankNum = startIndex + idx + 1;
 
                 return (
                   <tr
@@ -177,8 +222,21 @@ export const StockTable: React.FC<StockTableProps> = ({
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     onClick={() => onSelectStock(stk.symbol)}
                   >
+                    {/* Rank Number */}
+                    <td style={{ padding: '12px 6px', textAlign: 'center' }}>
+                      {rankNum === 1 ? (
+                        <span style={{ color: '#f59e0b', fontWeight: 800, fontSize: '0.85rem' }}>🥇 1</span>
+                      ) : rankNum === 2 ? (
+                        <span style={{ color: '#94a3b8', fontWeight: 800, fontSize: '0.85rem' }}>🥈 2</span>
+                      ) : rankNum === 3 ? (
+                        <span style={{ color: '#b45309', fontWeight: 800, fontSize: '0.85rem' }}>🥉 3</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>#{rankNum}</span>
+                      )}
+                    </td>
+
                     {/* Watchlist star */}
-                    <td style={{ padding: '12px 8px' }} onClick={(e) => { e.stopPropagation(); onToggleWatchlist(stk.symbol); }}>
+                    <td style={{ padding: '12px 6px' }} onClick={(e) => { e.stopPropagation(); onToggleWatchlist(stk.symbol); }}>
                       <Star
                         size={16}
                         color={isWatch ? '#f59e0b' : 'var(--text-muted)'}
@@ -213,14 +271,19 @@ export const StockTable: React.FC<StockTableProps> = ({
                     </td>
 
                     {/* Change Rate */}
-                    <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: sortField === 'changeRate' ? 700 : 400 }}>
                       <span className={`badge ${isUp ? 'badge-up' : 'badge-down'}`}>
                         {isUp ? '+' : ''}{stk.changeRate.toFixed(2)}%
                       </span>
                     </td>
 
+                    {/* Volume (거래량) */}
+                    <td style={{ padding: '12px 10px', textAlign: 'right', color: sortField === 'volume' ? '#60a5fa' : 'var(--text-secondary)', fontWeight: sortField === 'volume' ? 700 : 400 }}>
+                      {formatVolume(stk.volume, stk.currency)}
+                    </td>
+
                     {/* Market Cap */}
-                    <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                    <td style={{ padding: '12px 10px', textAlign: 'right', color: sortField === 'marketCap' ? 'var(--color-brand)' : 'var(--text-secondary)', fontWeight: sortField === 'marketCap' ? 700 : 400 }}>
                       {stk.currency === 'KRW' 
                         ? `${(stk.marketCap / 10000).toFixed(1)}조`
                         : `$${(stk.marketCap / 1000).toFixed(1)}B`}
@@ -265,7 +328,7 @@ export const StockTable: React.FC<StockTableProps> = ({
               })
             ) : (
               <tr>
-                <td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                   조건에 일치하는 종목이 없습니다. 필터를 완화해 보세요.
                 </td>
               </tr>

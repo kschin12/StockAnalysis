@@ -282,6 +282,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
           <StockTable
             stocks={filteredStocks}
             watchlist={watchlist}
+            activeCategory={activeCategory}
             onToggleWatchlist={onToggleWatchlist}
             onSelectStock={onSelectStock}
           />

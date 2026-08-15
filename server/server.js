@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addWatchlist, removeWatchlist } = require('./db');
-const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics } = require('./collector');
+const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
 const { runDartFinancialSync } = require('./dartCollector');
 
@@ -149,46 +149,58 @@ app.get('/api/quant/metrics', async (req, res) => {
   }
 });
 
-// 10. 동적 종목 디스커버리 랭킹 (한국 + 미국 지원) - 초고속 DB 즉시 반환 + 비동기 백그라운드 갱신
+// 10. 동적 종목 디스커버리 랭킹 (한국 + 미국 지원) - 사전 캐시 1ms 초고속 응답
 app.get('/api/rankings/:category', async (req, res) => {
   try {
     const { category } = req.params;
     const { market } = req.query; // 'ALL', 'KRX', 'US'
-    
-    let orderBy = 'marketCap DESC';
-    if (category === 'volume') orderBy = 'volume DESC';
-    else if (category === 'rise') orderBy = 'changeRate DESC';
-    else if (category === 'tech') orderBy = 'roe DESC';
-
-    let whereConditions = ['price > 0'];
-    if (market === 'KRX') {
-      whereConditions.push("(market = 'KRX' OR currency = 'KRW')");
-    } else if (market === 'US') {
-      whereConditions.push("(market = 'US' OR currency = 'USD')");
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-    const query = `SELECT * FROM stocks ${whereClause} ORDER BY ${orderBy} LIMIT 60`;
+    const targetMarket = market || 'ALL';
 
     const { db } = require('./db');
-    db.all(query, [], (err, rows) => {
-      if (err) {
-        console.error('DB Rankings error:', err);
-        return res.status(500).json({ error: 'Database ranking query failed' });
+
+    // 1. 캐시 테이블 market_rankings 에서 1위~50위 즉시 조회
+    let query = `
+      SELECT r.ranking, s.* FROM market_rankings r
+      JOIN stocks s ON r.symbol = s.symbol
+      WHERE r.category = ? AND r.market = ?
+      ORDER BY r.ranking ASC
+      LIMIT 60
+    `;
+
+    db.all(query, [category, targetMarket], (err, rows) => {
+      if (!err && rows && rows.length > 0) {
+        return res.json({
+          success: true,
+          category,
+          market: targetMarket,
+          count: rows.length,
+          data: rows,
+          timestamp: new Date().toISOString()
+        });
       }
 
-      // 백그라운드에서 비동기로 추가 수집 (클라이언트 응답 지연 없음)
-      runDynamicCollection(category, market || 'ALL').catch(e => {
-        console.warn('[Background Dynamic Collection Warning]', e.message);
-      });
+      // 2. 캐시가 아직 비어있을 경우 stocks 테이블에서 즉시 정렬 반환
+      let orderBy = 's.marketCap DESC';
+      if (category === 'volume') orderBy = 's.volume DESC';
+      else if (category === 'rise') orderBy = 's.changeRate DESC';
 
-      res.json({
-        success: true,
-        category,
-        market: market || 'ALL',
-        count: rows.length,
-        data: rows,
-        timestamp: new Date().toISOString()
+      let whereConditions = ['s.price > 0'];
+      if (targetMarket === 'KRX') {
+        whereConditions.push("(s.market = 'KRX' OR s.currency = 'KRW')");
+      } else if (targetMarket === 'US') {
+        whereConditions.push("(s.market = 'US' OR s.currency = 'USD')");
+      }
+
+      const fallbackQuery = `SELECT * FROM stocks s WHERE ${whereConditions.join(' AND ')} ORDER BY ${orderBy} LIMIT 60`;
+      db.all(fallbackQuery, [], (err2, fallbackRows) => {
+        res.json({
+          success: true,
+          category,
+          market: targetMarket,
+          count: (fallbackRows || []).length,
+          data: fallbackRows || [],
+          timestamp: new Date().toISOString()
+        });
       });
     });
   } catch (err) {
@@ -237,7 +249,7 @@ app.delete('/api/watchlist/:symbol', async (req, res) => {
   }
 });
 
-// 10. 프로덕션 프론트엔드 정적 파일 서빙 (Single Port 통합 배포)
+// 12. 프로덕션 프론트엔드 정적 파일 서빙 (Single Port 통합 배포)
 const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
@@ -251,4 +263,13 @@ if (fs.existsSync(distPath)) {
 app.listen(PORT, () => {
   console.log(`🚀 AlphaQuant REST API Server listening on port ${PORT}`);
   console.log(`👉 Web App & API: http://localhost:${PORT}`);
+
+  // 서버 시작 3초 후 초기 랭킹 수집 1회 실행 & 이후 60초마다 정기 자동 수집
+  setTimeout(() => {
+    refreshAllRankingsAndSave().catch(e => console.warn('Initial cron error:', e.message));
+  }, 3000);
+
+  setInterval(() => {
+    refreshAllRankingsAndSave().catch(e => console.warn('Interval cron error:', e.message));
+  }, 60000);
 });

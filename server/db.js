@@ -111,6 +111,18 @@ function initTablesAndSeed() {
       )
     `);
 
+    // 6. Market Rankings Cache (카테고리별/시장별 실시간 순위 캐시)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS market_rankings (
+        category TEXT NOT NULL,
+        market TEXT NOT NULL,
+        ranking INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (category, market, ranking)
+      )
+    `);
+
     // 데이터 존재 여부 확인 후 초기 시드 삽입
     db.get('SELECT COUNT(*) as count FROM stocks', (err, row) => {
       if (!err && row.count === 0) {
