@@ -154,21 +154,46 @@ async function fetchNaverFinancialStatement(symbol) {
   }
 }
 
-// 3. DART & 상장사 전체 재무제표 동기화 마스터 실행
+// 3. DART & 상장사 전체 재무제표 동기화 마스터 실행 (시총/거래량/급등 랭킹 기반 동적 연동)
 async function runDartFinancialSync() {
-  console.log('📦 [DART] 상장사 전체 재무제표 동기화 시작...');
+  console.log('📦 [DART] 시총/거래량/급등 랭킹 기반 상장사 재무제표 동기화 시작...');
   const results = [];
 
-  // DB에 등록된 모든 국내 주식 가져오기
-  const rows = await new Promise((resolve) => {
+  // 1. 실시간 랭킹(시가총액 상위, 거래량 상위, 급등주)에서 조회된 국내 종목 우선 취합
+  const rankingRows = await new Promise((resolve) => {
+    db.all(`
+      SELECT DISTINCT s.symbol, s.name, r.category, r.ranking
+      FROM market_rankings r
+      JOIN stocks s ON r.symbol = s.symbol
+      WHERE (s.market = 'KRX' OR s.currency = 'KRW')
+      ORDER BY r.ranking ASC
+    `, (err, list) => {
+      resolve(list || []);
+    });
+  });
+
+  // 2. 전체 stocks 테이블의 국내 종목 목록 취합
+  const stockRows = await new Promise((resolve) => {
     db.all("SELECT symbol, name FROM stocks WHERE market = 'KRX' OR currency = 'KRW'", (err, list) => {
       resolve(list || []);
     });
   });
 
-  console.log(`🔍 [DART] 동기화 대상 국내 상장사: ${rows.length}개 종목`);
+  // 랭킹에서 발굴된 종목을 우선 순위로 고유 타겟 맵 구성
+  const targetMap = new Map();
+  for (const st of rankingRows) {
+    targetMap.set(st.symbol, st);
+  }
+  for (const st of stockRows) {
+    if (!targetMap.has(st.symbol)) {
+      targetMap.set(st.symbol, st);
+    }
+  }
 
-  for (const st of rows) {
+  const targets = Array.from(targetMap.values());
+  console.log(`🔍 [DART] 랭킹(시총/거래량/급등) 및 DB 발굴 국내 상장사: 총 ${targets.length}개 대상 동기화`);
+
+  for (const st of targets) {
     try {
       const corpInfo = DART_CORP_MAP[st.symbol];
       let fin = null;
@@ -178,7 +203,7 @@ async function runDartFinancialSync() {
         fin = await fetchDartFinancialStatement(corpInfo.corp_code);
       }
 
-      // 2. DART 미응답 또는 키 미설정 시 네이버 금융 재무제표로 100% 자동 동기화
+      // 2. DART 미응답 또는 키 미설정 시 네이버 금융 실시간 재무제표로 100% 동기화
       if (!fin || (fin.revenue === 0 && fin.operatingIncome === 0)) {
         fin = await fetchNaverFinancialStatement(st.symbol);
       }
