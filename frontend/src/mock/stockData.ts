@@ -27,9 +27,9 @@ export const MOCK_STOCKS: Stock[] = [
     market: 'KRX',
     assetType: 'STOCK',
     sector: '전기전자',
-    price: 78500,
-    changeRate: 1.68,
-    volume: 15420000,
+    price: 274500,
+    changeRate: 2.43,
+    volume: 18420000,
     marketCap: 4680000,
     per: 13.8,
     pbr: 1.25,
@@ -40,8 +40,8 @@ export const MOCK_STOCKS: Stock[] = [
     currentRatio: 245.0,
     interestCoverage: 18.4,
     rsi14: 62.5,
-    high52w: 86000,
-    low52w: 67000,
+    high52w: 290000,
+    low52w: 210000,
     currency: 'KRW'
   },
   {

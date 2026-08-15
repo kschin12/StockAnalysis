@@ -44,7 +44,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>추천 프리셋:</span>
+          {/* 전체 종목 원클릭 조회 버튼 */}
+          <button
+            onClick={onResetFilters}
+            className="btn btn-primary"
+            style={{ fontSize: '0.82rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+            title="모든 필터를 해제하고 국내외 28개 전종목을 한눈에 조회합니다."
+          >
+            <span>🌐</span>
+            <strong>전체 종목 한번에 보기</strong>
+          </button>
+
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '6px' }}>추천 프리셋:</span>
           {presets.map(p => (
             <button
               key={p.id}
@@ -82,6 +93,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             onClick={onResetFilters}
             className="btn btn-ghost"
             style={{ fontSize: '0.8rem', padding: '5px 10px' }}
+            title="필터 조건을 초기화합니다."
           >
             <RotateCcw size={13} />
             초기화
