@@ -6,7 +6,7 @@ const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addW
 const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
 const { runDartFinancialSync } = require('./dartCollector');
-const { syncAllRealNews } = require('./newsCollector');
+const { syncAllRealNews, searchLatestNewsForStock } = require('./newsCollector');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -114,6 +114,19 @@ app.get('/api/news', async (req, res) => {
   } catch (err) {
     console.error('Error fetching news:', err);
     res.status(500).json({ error: 'Failed to fetch news' });
+  }
+});
+
+// 6-1. 특정 종목 최신 뉴스 및 공시 실시간 맞춤 검색
+app.post('/api/stocks/:symbol/news/search', async (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const companyName = req.body?.name || req.query?.name;
+    const news = await searchLatestNewsForStock(symbol, companyName);
+    res.json({ success: true, count: news.length, data: news });
+  } catch (err) {
+    console.error('Error searching stock news:', err);
+    res.status(500).json({ error: 'Failed to search stock news' });
   }
 });
 

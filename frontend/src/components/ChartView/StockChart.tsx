@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts';
 import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightweight-charts';
 import type { Stock, NewsItem } from '../../types/stock';
-import { fetchStockCandles } from '../../api/stockApi';
+import { fetchStockCandles, searchStockNews } from '../../api/stockApi';
 import { generateMockCandles } from '../../mock/stockData';
-import { TrendingUp, TrendingDown, Newspaper, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Newspaper, Loader2, Search } from 'lucide-react';
 import { getBadgeDetail, calculateBadgeTooltipPosition } from '../../utils/badgeDetails';
 import type { ActiveTooltipState } from '../../utils/badgeDetails';
 import { BadgeTooltipPortal } from '../common/BadgeTooltipPortal';
@@ -22,6 +22,13 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   const [periodDays, setPeriodDays] = useState<number>(90);
   const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [activeBadgeTooltip, setActiveBadgeTooltip] = useState<ActiveTooltipState | null>(null);
+  const [isSearchingNews, setIsSearchingNews] = useState<boolean>(false);
+  const [searchedNews, setSearchedNews] = useState<NewsItem[] | null>(null);
+
+  // 종목 변경 시 검색 뉴스 초기화
+  useEffect(() => {
+    setSearchedNews(null);
+  }, [stock.symbol]);
 
   useEffect(() => {
     const handleScroll = () => setActiveBadgeTooltip(null);
@@ -50,8 +57,22 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
     setActiveBadgeTooltip(null);
   };
 
-  const relatedNews = news.filter(n => n.symbol === stock.symbol);
+  const relatedNews = searchedNews !== null ? searchedNews : news.filter(n => n.symbol === stock.symbol);
   const isUp = stock.changeRate >= 0;
+
+  const handleSearchNews = async () => {
+    setIsSearchingNews(true);
+    try {
+      const results = await searchStockNews(stock.symbol, stock.name);
+      if (results && results.length > 0) {
+        setSearchedNews(results);
+      }
+    } catch (err) {
+      console.error('최신 뉴스 검색 실패:', err);
+    } finally {
+      setIsSearchingNews(false);
+    }
+  };
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -336,9 +357,30 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
         </div>
 
         <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Newspaper size={18} color="var(--color-brand)" />
-            <h3 style={{ fontSize: '1.05rem' }}>{stock.name} 관련 뉴스 및 공시</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Newspaper size={18} color="var(--color-brand)" />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{stock.name} 관련 뉴스 및 공시</h3>
+            </div>
+
+            <button
+              onClick={handleSearchNews}
+              disabled={isSearchingNews}
+              className="btn btn-secondary"
+              style={{
+                padding: '5px 12px',
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                borderRadius: '6px',
+                fontWeight: 600
+              }}
+              title={`${stock.name}의 최신 뉴스 및 DART 공시를 실시간으로 추가 검색하여 업데이트합니다.`}
+            >
+              {isSearchingNews ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+              {isSearchingNews ? '뉴스 검색 중...' : '최신뉴스 검색'}
+            </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -354,7 +396,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span className={`badge ${n.isDisclosure ? 'badge-warning' : 'badge-tag'}`} style={{ fontSize: '0.65rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: n.isDisclosure ? '#fbbf24' : '#818cf8' }}>
                       {n.isDisclosure ? 'DART 공시' : n.source}
                     </span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{n.date}</span>

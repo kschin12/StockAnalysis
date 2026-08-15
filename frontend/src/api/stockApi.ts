@@ -240,3 +240,22 @@ export async function fetchStockCandles(symbol: string, days: number = 90): Prom
     return [];
   }
 }
+
+export async function searchStockNews(symbol: string, name: string): Promise<NewsItem[]> {
+  try {
+    const res = await fetch(`/api/stocks/${encodeURIComponent(symbol)}/news/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) {
+      return json.data;
+    }
+    return [];
+  } catch (err) {
+    console.error('searchStockNews error:', err);
+    return [];
+  }
+}
