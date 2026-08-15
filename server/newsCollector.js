@@ -204,88 +204,94 @@ async function fetchLiveUsNews() {
   return count;
 }
 
-// 3. DART 전자공시 실시간 수집 및 공식 리포트 직접 링크
+// 3. DART / 거래소 전자공시 실시간 수집 및 개별 공시 보고서 직접 링크
 async function fetchLiveDartDisclosures() {
-  const dartList = [
-    {
-      id: "dart_005930_1",
-      symbol: "005930",
-      companyName: "삼성전자",
-      title: "[공시] 단일판매·공급계약체결 (고대역폭 메모리 반도체 HBM3E 대규모 공급계약)",
-      summary: "확정 계약금액 총 4조 8,500억원 규모의 고성능 메모리 장기 공급계약 체결.",
-      source: "금융감독원 DART",
-      date: "2026-08-15 13:45",
-      url: "https://finance.naver.com/item/news_notice.naver?code=005930",
-      sentiment: "positive",
-      isDisclosure: 1,
-      importance: 5
-    },
-    {
-      id: "dart_000660_1",
-      symbol: "000660",
-      companyName: "SK하이닉스",
-      title: "[공시] 주요사항보고서 (자기주식취득 및 소각 결정)",
-      summary: "주주가치 제고를 위하여 총 1조 2,000억원 규모의 보통주 자기주식 취득 및 전량 소각 이사회 결의.",
-      source: "금융감독원 DART",
-      date: "2026-08-15 10:30",
-      url: "https://finance.naver.com/item/news_notice.naver?code=000660",
-      sentiment: "positive",
-      isDisclosure: 1,
-      importance: 5
-    },
-    {
-      id: "dart_005380_1",
-      symbol: "005380",
-      companyName: "현대차",
-      title: "[공시] 분기배당을 위한 주주명부폐쇄기준일 결정 및 현금배당 계획",
-      summary: "주당 2,000원 중간 분기배당 실시 및 주주환원율 35% 달성을 위한 중장기 로드맵 공시.",
-      source: "금융감독원 DART",
-      date: "2026-08-14 17:30",
-      url: "https://finance.naver.com/item/news_notice.naver?code=005380",
-      sentiment: "positive",
-      isDisclosure: 1,
-      importance: 4
-    },
-    {
-      id: "dart_207940_1",
-      symbol: "207940",
-      companyName: "삼성바이오로직스",
-      title: "[공시] 투자판단 관련 주요경영사항 (제5공장 증설 및 글로벌 빅파마 CMO 장기 수주)",
-      summary: "글로벌 빅파마와 총 1조 6,800억원 규모의 바이오의약품 위탁생산(CMO) 장기 계약 체결 공시.",
-      source: "금융감독원 DART",
-      date: "2026-08-14 10:10",
-      url: "https://finance.naver.com/item/news_notice.naver?code=207940",
-      sentiment: "positive",
-      isDisclosure: 1,
-      importance: 5
-    },
-    {
-      id: "dart_003670_1",
-      symbol: "003670",
-      companyName: "포스코퓨처엠",
-      title: "[공시] 주요사항보고서 (신규 시설투자 1조 1,500억원 확정)",
-      summary: "하이니켈 양극재 전용 공장 신설 투자로 북미 및 유럽 완성차향 물량 공급 기반 마련 공시.",
-      source: "금융감독원 DART",
-      date: "2026-08-13 18:00",
-      url: "https://finance.naver.com/item/news_notice.naver?code=003670",
-      sentiment: "positive",
-      isDisclosure: 1,
-      importance: 5
-    }
+  const decoder = new TextDecoder('euc-kr');
+  const targetSymbols = [
+    { symbol: '005930', name: '삼성전자' },
+    { symbol: '000660', name: 'SK하이닉스' },
+    { symbol: '005380', name: '현대차' },
+    { symbol: '207940', name: '삼성바이오로직스' },
+    { symbol: '003670', name: '포스코퓨처엠' },
+    { symbol: '035420', name: 'NAVER' },
+    { symbol: '035720', name: '카카오' },
+    { symbol: '068270', name: '셀트리온' },
+    { symbol: '000270', name: '기아' },
+    { symbol: '051910', name: 'LG화학' }
   ];
 
+  const liveDisclosures = [];
+
+  for (const item of targetSymbols) {
+    try {
+      const url = `https://finance.naver.com/item/news_notice.naver?code=${item.symbol}`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!res.ok) continue;
+
+      const buffer = await res.arrayBuffer();
+      const html = decoder.decode(buffer);
+
+      const trMatches = [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
+      let count = 0;
+
+      for (const tr of trMatches) {
+        if (count >= 3) break;
+        const content = tr[1];
+        if (!content.includes('news_notice_read')) continue;
+
+        const noMatch = content.match(/news_notice_read\.naver\?no=([0-9]+)&(?:amp;)?code=([0-9A-Za-z]+)/i);
+        const titleMatch = content.match(/<a[^>]*class="tit"[^>]*>([\s\S]*?)<\/a>/i);
+        const infoMatch = content.match(/<td class="info">([\s\S]*?)<\/td>/i);
+        const dateMatch = content.match(/<td class="date">([\s\S]*?)<\/td>/i);
+
+        if (noMatch && titleMatch) {
+          const no = noMatch[1];
+          const code = noMatch[2];
+          const rawTitle = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+          const source = infoMatch ? infoMatch[1].replace(/<[^>]+>/g, '').trim() : '공시';
+          const dateStr = dateMatch ? dateMatch[1].replace(/<[^>]+>/g, '').trim() : '2026-08-15';
+
+          // 정확한 공시 본문 직접 연결 영구 URL
+          const directNoticeUrl = `https://finance.naver.com/item/news_notice_read.naver?no=${no}&code=${code}`;
+
+          liveDisclosures.push({
+            id: `dart_${code}_${no}`,
+            symbol: code,
+            companyName: item.name,
+            title: `[공시] ${rawTitle}`,
+            summary: `${item.name} - ${rawTitle} (한국거래소 및 금융감독원 전자공시시스템 공식 접수 상세 보고서입니다.)`,
+            source: `DART (${source})`,
+            date: dateStr.replace(/\./g, '-'),
+            url: directNoticeUrl,
+            sentiment: 'positive',
+            isDisclosure: 1,
+            importance: 5
+          });
+          count++;
+        }
+      }
+    } catch (err) {
+      console.warn(`[newsCollector] DART disclosure fetch warning (${item.symbol}):`, err.message);
+    }
+  }
+
   return new Promise((resolve) => {
+    if (liveDisclosures.length === 0) return resolve(0);
+
     db.serialize(() => {
       const stmt = db.prepare(`
         INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
-      for (const d of dartList) {
+      for (const d of liveDisclosures) {
         stmt.run([d.id, d.symbol, d.companyName, d.title, d.summary, d.source, d.date, d.url, d.sentiment, 1, d.importance]);
       }
 
-      stmt.finalize(() => resolve(dartList.length));
+      stmt.finalize(() => resolve(liveDisclosures.length));
     });
   });
 }
