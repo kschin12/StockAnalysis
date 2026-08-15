@@ -56,16 +56,16 @@ function generateInformativeSummary(title, rawDesc, companyName, isDisclosure) {
   // 1. DART 전자공시 전문 심층 맥락 요약 (2~3문장, 핵심 이슈 위주)
   if (isDisclosure) {
     if (cleanTitle.includes('배당')) {
-      return `${comp}의 주주가치 제고 및 이익 환원을 위한 현금·현물 배당 공시입니다. 배당 기준일 및 시가배당률을 바탕으로 중장기 주주환원 정책의 지속성과 배당 매력도를 점검할 수 있는 핵심 재무 이벤트입니다.`;
+      return `${comp}의 주주가치 제고 및 이익 환원을 위한 현금·현물 배당 결정 공시입니다. 배당 기준일 및 시가배당률을 바탕으로 중장기 주주환원 정책의 지속성과 배당 매력도를 점검할 수 있는 핵심 재무 지표입니다.`;
     }
     if (cleanTitle.includes('실적') || cleanTitle.includes('영업(잠정)실적') || cleanTitle.includes('영업실적') || cleanTitle.includes('재무제표')) {
-      return `${comp}의 분기 영업실적(잠정) 공식 집계 공시입니다. 시장 컨센서스(증권사 전망치) 부합 여부 및 전년 동기 대비 수익성(영업이익률) 개선 추세를 가늠하는 핵심 실적 지표입니다.`;
+      return `${comp}의 최근 분기 매출액 및 영업이익 잠정 실적 집계 공시입니다. 시장 컨센서스(증권사 전망치) 부합 여부 및 전년 동기 대비 수익성(영업이익률) 개선 추세를 가늠하는 핵심 실적 지표입니다.`;
     }
     if (cleanTitle.includes('공급계약') || cleanTitle.includes('단일판매') || cleanTitle.includes('수주')) {
-      return `${comp}의 주요 거래처향 대규모 제품 공급 및 신규 수주 계약 공시입니다. 확정 계약금액과 공급 기간에 따라 향후 분기별 매출 인식과 실적 성장세를 견인할 주요 모멘텀으로 작용합니다.`;
+      return `${comp}의 주요 거래처향 대규모 제품 공급 및 신규 수주 계약 체결 공시입니다. 확정 계약금액과 공급 기간에 따라 향후 분기별 매출 인식과 실적 성장세를 견인할 주요 모멘텀으로 작용합니다.`;
     }
     if (cleanTitle.includes('자기주식') || cleanTitle.includes('자사주') || cleanTitle.includes('소각')) {
-      return `${comp}의 주주환원 확대를 위한 자사주 취득 및 소각 이사회 결의 공시입니다. 유통 주식수 감소에 따른 주당순이익(EPS) 상승과 밸류에이션 리레이팅에 직접적인 긍정적 요인입니다.`;
+      return `${comp}의 주주환원 확대를 위한 자사주 취득 및 소각 이사회 결의 공시입니다. 유통 주식수 감소에 따른 주당순이익(EPS) 상승 및 밸류에이션 리레이팅에 직접적인 긍정적 요인입니다.`;
     }
     if (cleanTitle.includes('시설투자') || cleanTitle.includes('증설') || cleanTitle.includes('공장') || cleanTitle.includes('투자')) {
       return `${comp}의 차세대 생산 라인 증설 및 설비투자(CAPEX) 집행 공시입니다. 중장기 생산 능력 확대와 글로벌 고객사의 선제적 수요 대응력을 강화하기 위한 핵심 투자 전략입니다.`;
@@ -77,7 +77,7 @@ function generateInformativeSummary(title, rawDesc, companyName, isDisclosure) {
       return `${comp}의 국내외 기관투자자 및 주요 애널리스트 대상 기업설명회(IR) 개최 공시입니다. 최근 분기 사업 성과와 신규 성장 동력, 차세대 기술 로드맵이 공유될 예정입니다.`;
     }
     if (cleanTitle.includes('주식매수선택권') || cleanTitle.includes('추가상장')) {
-      return `${comp}의 임직원 주식매수선택권 행사 등에 따른 신주 추가상장 안내 공시입니다. 신규 상장 주식 수량 및 단기 오버행(잠재 매도 물량) 부담 여부를 확인할 필요가 있습니다.`;
+      return `${comp}의 임직원 주식매수선택권(스톡옵션) 행사 등에 따른 신주 추가상장 안내 공시입니다. 신규 상장 주식 수량 및 단기 오버행(잠재 매도 물량) 부담 여부를 확인할 필요가 있습니다.`;
     }
     if (cleanTitle.includes('조회공시') || cleanTitle.includes('풍문') || cleanTitle.includes('해명')) {
       return `${comp} 관련 시장 풍문 및 언론 보도에 대한 거래소 조회공시 요구 및 공식 해명 답변 공시입니다. 주요 경영 현안의 공식 사실관계 및 향후 추진 계획을 확인할 수 있습니다.`;
@@ -88,32 +88,44 @@ function generateInformativeSummary(title, rawDesc, companyName, isDisclosure) {
     return `${comp}의 한국거래소 및 금융감독원 DART 공식 접수 보고서입니다. 주요 경영 판단 및 재무 변동 요인이 포함되어 있으므로 원문 세부 보고서를 통해 구체적인 계약 조건과 수치를 확인하시기 바랍니다.`;
   }
 
-  // 2. 일반 뉴스 기사 심층 요약
-  if (cleanRaw && cleanRaw.length >= 40 && !cleanRaw.includes(cleanTitle.substring(0, 15))) {
+  // 2. 일반 뉴스 기사 정밀 토픽별 맥락 요약
+  if (cleanRaw && cleanRaw.length >= 50 && !cleanRaw.includes(cleanTitle.substring(0, 15))) {
     return cleanRaw;
   }
 
-  // description이 제목과 동일하거나 빈약한 경우, 기사 핵심 테마 기반으로 2~3문장 브리핑 생성
-  if (cleanTitle.includes('실적') || cleanTitle.includes('영업익') || cleanTitle.includes('매출') || cleanTitle.includes('흑자')) {
-    return `${comp}의 최근 영업실적 추이 및 수익성 개선에 관한 시장 분석입니다. 주요 사업부문의 가동률 상승과 원가 효율화, 전방 수요 회복 여부가 하반기 실적 흐름의 핵심 변수로 평가받고 있습니다.`;
+  // 토픽별 정밀 분석 (특허, 주주구성, 수출, HBM, 파운드리, 실적, 목표가 등)
+  if (cleanTitle.includes('특허') || cleanTitle.includes('출원') || cleanTitle.includes('지식재산') || cleanTitle.includes('IP')) {
+    return `${comp}의 차세대 핵심 기술 특허 출원 및 지식재산권(IP) 글로벌 경쟁력에 관한 보도입니다. 원천 기술 확보와 기술 장벽 구축이 중장기 시장 지배력 강화의 핵심 기반으로 평가받고 있습니다.`;
   }
-  if (cleanTitle.includes('HBM') || cleanTitle.includes('AI') || cleanTitle.includes('반도체') || cleanTitle.includes('엔비디아')) {
-    return `${comp}의 차세대 AI 반도체 및 고대역폭메모리(HBM) 공급망 경쟁력에 관한 보도입니다. 글로벌 빅테크향 납품 점유율과 수율 안정화가 향후 주가와 실적의 핵심 드라이버로 주목받고 있습니다.`;
+  if (cleanTitle.includes('소액주주') || cleanTitle.includes('주주') || cleanTitle.includes('국민주') || cleanTitle.includes('개미')) {
+    return `${comp}의 개인 투자자 및 주주 구성 동향에 관한 시장 분석입니다. 주가 반등 및 실적 개선에 대한 대중적 기대감과 시장 수급 유입 추이를 파악할 수 있는 지표입니다.`;
+  }
+  if (cleanTitle.includes('수출') || cleanTitle.includes('무역') || cleanTitle.includes('대미') || cleanTitle.includes('대중')) {
+    return `${comp}의 글로벌 주요 권역(미국, 중국 등) 수출 실적 및 교역 현황에 관한 소식입니다. 글로벌 전방 수요 회복세와 환율 환경이 수출 채산성 및 실적에 미치는 영향이 분석되고 있습니다.`;
+  }
+  if (cleanTitle.includes('파운드리') || cleanTitle.includes('팹') || cleanTitle.includes('공장') || cleanTitle.includes('파견') || cleanTitle.includes('증설')) {
+    return `${comp}의 생산 설비(Fab) 운영 및 파운드리/제조 인프라 경쟁력에 관한 보도입니다. 글로벌 고객사 수요 대응과 제조 수율 안정화가 향후 중장기 가동률의 핵심 과제입니다.`;
+  }
+  if (cleanTitle.includes('HBM') || cleanTitle.includes('고대역폭')) {
+    return `${comp}의 차세대 고대역폭메모리(HBM) 양산 및 글로벌 빅테크 공급망 진입 경쟁력에 관한 보도입니다. 차세대 제품 수율 안정화와 납품 점유율 확대가 향후 주가와 실적의 핵심 드라이버입니다.`;
+  }
+  if (cleanTitle.includes('실적') || cleanTitle.includes('영업익') || cleanTitle.includes('매출') || cleanTitle.includes('어닝') || cleanTitle.includes('흑자')) {
+    return `${comp}의 최근 분기 실적 추이 및 수익성 개선에 관한 분석입니다. 주요 사업부문의 가동률과 제품 믹스 개선, 전방 수요 회복 여부가 향후 이익 성장의 핵심 변수로 꼽힙니다.`;
   }
   if (cleanTitle.includes('배당') || cleanTitle.includes('주주환원') || cleanTitle.includes('밸류업') || cleanTitle.includes('자사주')) {
-    return `${comp}의 주주환원 정책 확대 및 기업가치 제고(밸류업) 방안에 관한 내용입니다. 적극적인 자사주 매입·소각과 안정적인 배당 성향 유지가 주가 하방 경직성을 뒷받침하고 있습니다.`;
+    return `${comp}의 주주환원 정책 확대 및 기업가치 제고(밸류업) 방안에 관한 내용입니다. 적극적인 자사주 매입·소각과 배당 성향 상향이 주가 하방 지지력을 뒷받침하고 있습니다.`;
   }
   if (cleanTitle.includes('수주') || cleanTitle.includes('계약') || cleanTitle.includes('공급') || cleanTitle.includes('납품')) {
-    return `${comp}의 글로벌 신규 고객사 확보 및 대규모 수주 계약 체결 소식입니다. 탄탄한 수주 잔고 확보를 통해 향후 분기별 매출 성장 가시성이 한층 높아질 것으로 기대됩니다.`;
+    return `${comp}의 신규 고객사 확보 및 대규모 공급계약 체결 소식입니다. 탄탄한 수주 잔고 확보를 통해 향후 분기별 매출 성장 가시성이 한층 높아질 것으로 기대됩니다.`;
   }
   if (cleanTitle.includes('목표가') || cleanTitle.includes('상향') || cleanTitle.includes('투자의견') || cleanTitle.includes('리포트')) {
-    return `국내외 주요 증권사의 ${comp} 펀더멘털 평가 및 목표주가 동향입니다. 이익 성장 가시성과 글로벌 업종 내 밸류에이션 매력도에 기반한 긍정적 투자 의견이 제시되고 있습니다.`;
+    return `증권사 분석 리포트를 통한 ${comp}의 펀더멘털 평가 및 목표주가 동향입니다. 이익 성장 가시성과 글로벌 업종 내 밸류에이션 매력도에 기반한 투자 전략이 제시되고 있습니다.`;
   }
   if (cleanTitle.includes('급등') || cleanTitle.includes('상승') || cleanTitle.includes('신고가') || cleanTitle.includes('돌파')) {
     return `${comp} 주가의 강한 상승 모멘텀과 기관·외국인 수급 유입에 관한 보도입니다. 업황 턴어라운드 기대감과 우호적인 시장 매크로 환경이 긍정적인 투자 심리를 견인하고 있습니다.`;
   }
-  if (cleanTitle.includes('하락') || cleanTitle.includes('우려') || cleanTitle.includes('약세') || cleanTitle.includes('조정')) {
-    return `${comp} 주가의 단기 가격 조정 및 전방 업황 불확실성에 관한 분석입니다. 거시경제 지표 변동성과 단기 차익 실현 매물 출회가 주가에 영향을 미치고 있어 분할 대응이 권장됩니다.`;
+  if (cleanTitle.includes('하락') || cleanTitle.includes('우려') || cleanTitle.includes('약세') || cleanTitle.includes('조정') || cleanTitle.includes('손실')) {
+    return `${comp} 주가의 단기 가격 조정 및 전방 업황 불확실성에 관한 분석입니다. 거시경제 지표 변동성과 단기 차익 실현 매물 출회가 주가에 미치는 영향을 점검할 필요가 있습니다.`;
   }
 
   return `${comp}의 최근 경영 현황 및 업황 변화에 관한 주요 언론 보도입니다. 주요 전방 산업 동향과 기관 수급 변화를 중심으로 향후 주가 모멘텀을 주시할 필요가 있습니다.`;
