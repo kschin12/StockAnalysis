@@ -74,15 +74,13 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
       {/* ========================================================= */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* 상단 헤더 */}
-        <div className="glass-card" style={{
-          padding: '18px 24px',
+        <div style={{
+          padding: '8px 4px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px',
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.35)'
+          gap: '12px'
         }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>글로벌 시황 종합 브리핑</h2>
@@ -250,8 +248,8 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
       {/* ========================================================= */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Header & Filter Controls */}
-        <div className="glass-card" style={{
-          padding: '18px 24px',
+        <div style={{
+          padding: '8px 4px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

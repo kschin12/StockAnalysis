@@ -170,7 +170,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
         {/* Right Main Column: Category Tabs, Market Filter, Watchlist Input & Results Table */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           {/* 동적 디스커버리 탭 메뉴 & 시장 선택 바 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'rgba(17, 24, 39, 0.6)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '4px 2px' }}>
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', flexWrap: 'wrap' }}>
               <button 
                 className={`btn ${activeCategory === 'market_cap' ? 'btn-primary' : 'btn-secondary'}`}
