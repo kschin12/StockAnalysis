@@ -154,7 +154,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             style={{ width: '100%', fontSize: '0.8rem', padding: '6px 8px' }}
           >
             <option value="ALL">전체 (국내+미국)</option>
-            <option value="KRX">국내 (KRX)</option>
+            <option value="KOSPI">코스피 (KOSPI)</option>
+            <option value="KOSDAQ">코스닥 (KOSDAQ)</option>
+            <option value="KRX">한국 전체 (KRX)</option>
             <option value="US">미국 (US)</option>
           </select>
         </div>

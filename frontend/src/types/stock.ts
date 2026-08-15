@@ -58,7 +58,7 @@ export interface NewsItem {
 }
 
 export interface FilterState {
-  market: 'ALL' | 'KRX' | 'US';
+  market: 'ALL' | 'KRX' | 'KOSPI' | 'KOSDAQ' | 'US';
   assetType: 'ALL' | 'STOCK' | 'ETF';
   minRoe: number | '';
   maxPer: number | '';
@@ -89,7 +89,21 @@ export interface CandleData {
 
 export interface QuantMetrics {
   updatedAt: string;
-  krxMetrics: {
+  kospiMetrics?: {
+    medianPer: number;
+    medianPbr: number;
+    avgRoe: number;
+    avgDividendYield: number;
+    stockCount: number;
+  };
+  kosdaqMetrics?: {
+    medianPer: number;
+    medianPbr: number;
+    avgRoe: number;
+    avgDividendYield: number;
+    stockCount: number;
+  };
+  krxMetrics?: {
     medianPer: number;
     medianPbr: number;
     avgRoe: number;
@@ -104,24 +118,53 @@ export interface QuantMetrics {
     stockCount: number;
   };
   dynamicPresets: {
-    krxValue: {
+    kospiValue?: {
       name: string;
-      targetPer: number;
-      targetPbr: number;
-      targetRoe: number;
+      market?: 'KOSPI' | 'ALL';
+      targetPer: number | '';
+      targetPbr: number | '';
+      targetRoe: number | '';
+      maxDebtRatio?: number | '';
       reason: string;
     };
-    usValue: {
+    kosdaqGrowth?: {
       name: string;
-      targetPer: number;
-      targetPbr: number;
-      targetRoe: number;
+      market?: 'KOSDAQ' | 'ALL';
+      targetPer: number | '';
+      targetPbr: number | '';
+      targetRoe: number | '';
+      maxDebtRatio?: number | '';
+      reason: string;
+    };
+    krxValue?: {
+      name: string;
+      market?: 'KOSPI' | 'KRX' | 'ALL';
+      targetPer: number | '';
+      targetPbr: number | '';
+      targetRoe: number | '';
+      reason: string;
+    };
+    usValue?: {
+      name: string;
+      market?: 'US' | 'ALL';
+      targetPer: number | '';
+      targetPbr: number | '';
+      targetRoe: number | '';
+      reason: string;
+    };
+    usGrowth?: {
+      name: string;
+      market?: 'US' | 'ALL';
+      targetPer: number | '';
+      targetPbr: number | '';
+      targetRoe: number | '';
       reason: string;
     };
     dividendSafe: {
       name: string;
-      targetDividendYield: number;
-      maxDebtRatio: number;
+      market?: 'ALL';
+      targetDividendYield: number | '';
+      maxDebtRatio: number | '';
       reason: string;
     };
   };

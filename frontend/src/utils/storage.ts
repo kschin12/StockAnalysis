@@ -5,15 +5,51 @@ const WATCHLIST_STORAGE_KEY = 'QUANT_SCREENER_WATCHLIST';
 
 export const DEFAULT_PRESETS: CustomPreset[] = [
   {
-    id: 'value-bluechip',
-    name: '저평가 우량주',
-    description: 'PER 10배 이하 + PBR 1배 이하 + ROE 10% 이상',
+    id: 'kospi-value',
+    name: '코스피 저평가 가치주',
+    description: '코스피 대형주 PER 10배 이하 + PBR 0.9배 이하 + ROE 8% 이상 + 부채 100% 이하',
     filters: {
-      market: 'ALL',
+      market: 'KOSPI',
       assetType: 'STOCK',
       maxPer: 10,
-      maxPbr: 1.0,
-      minRoe: 10,
+      maxPbr: 0.9,
+      minRoe: 8,
+      minDividend: '',
+      minMarketCap: '',
+      maxDebtRatio: 100,
+      minRsi: '',
+      maxRsi: '',
+      searchQuery: ''
+    }
+  },
+  {
+    id: 'kosdaq-growth',
+    name: '코스닥 고성장 테크',
+    description: '코스닥 소부장/바이오 ROE 15% 이상 + 고성장 모멘텀 (PER 45배 완화)',
+    filters: {
+      market: 'KOSDAQ',
+      assetType: 'STOCK',
+      maxPer: 45,
+      maxPbr: '',
+      minRoe: 15,
+      minDividend: '',
+      minMarketCap: '',
+      maxDebtRatio: 120,
+      minRsi: '',
+      maxRsi: '',
+      searchQuery: ''
+    }
+  },
+  {
+    id: 'us-growth',
+    name: '미국 빅테크 성장주',
+    description: '글로벌 독점력 기반 미국 우량 빅테크 (PER 25배 이하 + ROE 15% 이상)',
+    filters: {
+      market: 'US',
+      assetType: 'STOCK',
+      maxPer: 25,
+      maxPbr: '',
+      minRoe: 15,
       minDividend: '',
       minMarketCap: '',
       maxDebtRatio: '',
@@ -24,17 +60,17 @@ export const DEFAULT_PRESETS: CustomPreset[] = [
   },
   {
     id: 'dividend-safe',
-    name: '배당 안정주',
-    description: '배당수익률 3% 이상 + 부채비율 100% 이하',
+    name: '고배당 캐시카우',
+    description: '배당수익률 3.5% 이상 + 부채비율 90% 이하 재무 건전성',
     filters: {
       market: 'ALL',
       assetType: 'STOCK',
       maxPer: '',
       maxPbr: '',
       minRoe: '',
-      minDividend: 3.0,
+      minDividend: 3.5,
       minMarketCap: '',
-      maxDebtRatio: 100,
+      maxDebtRatio: 90,
       minRsi: '',
       maxRsi: '',
       searchQuery: ''
@@ -43,7 +79,7 @@ export const DEFAULT_PRESETS: CustomPreset[] = [
   {
     id: 'top-etfs',
     name: '대표 ETF 모음',
-    description: '시장 지수 및 배당 우량 ETF만 필터링',
+    description: '시장 대표 지수 및 배당 우량 ETF 모음',
     filters: {
       market: 'ALL',
       assetType: 'ETF',

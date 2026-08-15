@@ -20,6 +20,15 @@ interface ScreenerViewProps {
   onSelectStock: (symbol: string) => void;
 }
 
+const KOSDAQ_SYMBOLS = new Set([
+  '058470', '403870', '247540', '086520', '196170', '277810', '141080', '036930',
+  '041510', '293490', '263750', '039030', '108320', '028300', '214150', '066970',
+  '025980', '357780', '095660', '237690', '084370', '086900', '145020', '328130',
+  '256840', '112040', '067160', '095700', '214370', '140860', '035900', '122870',
+  '091990', '036830', '053800', '048410', '195870', '230360', '298540', '253450',
+  '307950', '090460'
+]);
+
 export const ScreenerView: React.FC<ScreenerViewProps> = ({
   stocks,
   filters,
@@ -74,7 +83,8 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
           });
           setDynamicStocks(enriched);
         } else {
-          const res = await fetchRankings(activeCategory, filters.market || 'ALL');
+          const apiMarket = filters.market === 'KOSPI' || filters.market === 'KOSDAQ' ? 'KRX' : (filters.market || 'ALL');
+          const res = await fetchRankings(activeCategory, apiMarket);
           if (res.success && res.data) {
             const enriched = res.data.map((item: Stock) => {
               const full = stocksMap.get(item.symbol);
@@ -120,10 +130,19 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
   const baseStocks = getCategoryBaseStocks();
   const filteredStocks = baseStocks.filter(s => {
-    // 1. Market
+    // 1. Market (코스피 vs 코스닥 정밀 분기)
     if (filters.market !== 'ALL') {
-      if (filters.market === 'US' && s.market !== 'US' && s.currency !== 'USD') return false;
-      if (filters.market === 'KRX' && s.market !== 'KRX' && s.currency !== 'KRW') return false;
+      if (filters.market === 'US') {
+        if (s.market !== 'US' && s.currency !== 'USD') return false;
+      } else if (filters.market === 'KOSPI') {
+        const isKr = s.market === 'KRX' || s.currency === 'KRW';
+        if (!isKr || KOSDAQ_SYMBOLS.has(s.symbol)) return false;
+      } else if (filters.market === 'KOSDAQ') {
+        const isKr = s.market === 'KRX' || s.currency === 'KRW';
+        if (!isKr || !KOSDAQ_SYMBOLS.has(s.symbol)) return false;
+      } else if (filters.market === 'KRX') {
+        if (s.market !== 'KRX' && s.currency !== 'KRW') return false;
+      }
     }
     // 2. Asset Type
     if (filters.assetType !== 'ALL' && s.assetType !== filters.assetType) {
@@ -226,8 +245,8 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
               </button>
             </div>
 
-            {/* 시장 전환 퀵 버튼 (전체 / 한국 / 미국) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+            {/* 시장 전환 퀵 버튼 (전체 / 코스피 / 코스닥 / 미국) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
               <span style={{ color: 'var(--text-muted)', marginRight: '2px' }}>시장:</span>
               <button
                 className={`badge ${filters.market === 'ALL' ? 'badge-tag' : ''}`}
@@ -237,15 +256,22 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                 전체
               </button>
               <button
-                className={`badge ${filters.market === 'KRX' ? 'badge-tag' : ''}`}
-                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KRX' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'KRX' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'KRX' ? '#fff' : 'var(--text-secondary)' }}
-                onClick={() => setFilters(prev => ({ ...prev, market: 'KRX' }))}
+                className={`badge ${filters.market === 'KOSPI' ? 'badge-tag' : ''}`}
+                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KOSPI' ? '1px solid #818cf8' : '1px solid var(--border-subtle)', background: filters.market === 'KOSPI' ? 'rgba(99, 102, 241, 0.25)' : 'transparent', color: filters.market === 'KOSPI' ? '#a5b4fc' : 'var(--text-secondary)', fontWeight: filters.market === 'KOSPI' ? 700 : 400 }}
+                onClick={() => setFilters(prev => ({ ...prev, market: 'KOSPI' }))}
               >
-                한국
+                코스피
+              </button>
+              <button
+                className={`badge ${filters.market === 'KOSDAQ' ? 'badge-tag' : ''}`}
+                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KOSDAQ' ? '1px solid #10b981' : '1px solid var(--border-subtle)', background: filters.market === 'KOSDAQ' ? 'rgba(16, 185, 129, 0.25)' : 'transparent', color: filters.market === 'KOSDAQ' ? '#34d399' : 'var(--text-secondary)', fontWeight: filters.market === 'KOSDAQ' ? 700 : 400 }}
+                onClick={() => setFilters(prev => ({ ...prev, market: 'KOSDAQ' }))}
+              >
+                코스닥
               </button>
               <button
                 className={`badge ${filters.market === 'US' ? 'badge-tag' : ''}`}
-                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'US' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fff' : 'var(--text-secondary)' }}
+                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'US' ? '1px solid #f59e0b' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fbbf24' : 'var(--text-secondary)' }}
                 onClick={() => setFilters(prev => ({ ...prev, market: 'US' }))}
               >
                 미국
