@@ -54,6 +54,7 @@ export interface NewsItem {
   url: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
   isDisclosure?: boolean; // DART 공시 여부
+  importance?: number; // 중요도 (1~5)
 }
 
 export interface FilterState {

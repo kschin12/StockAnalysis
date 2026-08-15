@@ -2384,10 +2384,11 @@ function getStock(symbol) {
 
 function getNews() {
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM news ORDER BY date DESC', (err, rows) => {
+    db.all('SELECT * FROM news ORDER BY COALESCE(importance, 3) DESC, date DESC', (err, rows) => {
       if (err) return reject(err);
       resolve(rows.map(r => ({
         ...r,
+        importance: r.importance || 3,
         isDisclosure: Boolean(r.isDisclosure)
       })));
     });

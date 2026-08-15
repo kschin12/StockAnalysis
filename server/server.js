@@ -6,6 +6,7 @@ const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addW
 const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
 const { runDartFinancialSync } = require('./dartCollector');
+const { seedRichNews, fetchRssNews } = require('./newsCollector');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -266,11 +267,14 @@ app.listen(PORT, () => {
 
   // 서버 시작 3초 후 초기 랭킹 수집 1회 실행 & 이후 5분(300초)마다 정기 자동 수집
   setTimeout(() => {
+    seedRichNews().catch(e => console.warn('News seed error:', e.message));
+    fetchRssNews().catch(e => console.warn('News RSS error:', e.message));
     refreshAllRankingsAndSave().catch(e => console.warn('Initial cron error:', e.message));
   }, 3000);
 
   const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5분
   setInterval(() => {
+    fetchRssNews().catch(e => console.warn('News RSS error:', e.message));
     refreshAllRankingsAndSave().catch(e => console.warn('Interval cron error:', e.message));
   }, REFRESH_INTERVAL_MS);
 });
