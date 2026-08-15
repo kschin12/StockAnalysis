@@ -30,6 +30,25 @@ function analyzeImportance(title, summary, isDisclosure) {
   return score;
 }
 
+function cleanHtmlText(text, fallbackTitle = '') {
+  if (!text) return `${fallbackTitle} 관련 실시간 주요 속보입니다. 상세 내용은 출처 원문 기사를 확인하세요.`;
+  let clean = text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!clean || clean.length <= 15 || clean === fallbackTitle) {
+    return `${fallbackTitle} 관련 실시간 주요 속보입니다. 상세 내용은 출처 원문 기사를 확인하세요.`;
+  }
+  return clean;
+}
+
 // 1. 국내 주요 증시 실시간 실기사 수집 (Google News RSS / 언론사별 원문 직링크)
 async function fetchLiveKoreanNews() {
   const query = encodeURIComponent('삼성전자 OR SK하이닉스 OR 현대차 OR 한미반도체 OR 셀트리온 OR NAVER OR LG에너지솔루션 OR POSCO홀딩스 OR KB금융 when:4d');
@@ -59,7 +78,6 @@ async function fetchLiveKoreanNews() {
       const link = (linkMatch ? linkMatch[1] : '#').trim();
       const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
       let sourceName = (sourceMatch ? sourceMatch[1] : '국내 언론사').trim();
-      const desc = (descMatch ? descMatch[1] : '').replace(/<[^>]*>?/gm, '').trim();
 
       // "제목 - 언론사" 포맷 분리
       if (fullTitle.includes(' - ')) {
@@ -67,6 +85,9 @@ async function fetchLiveKoreanNews() {
         sourceName = parts[parts.length - 1].trim();
         fullTitle = parts.slice(0, -1).join(' - ').trim();
       }
+
+      fullTitle = cleanHtmlText(fullTitle, '');
+      const desc = cleanHtmlText(descMatch ? descMatch[1] : '', fullTitle);
 
       // 관련 종목 매핑
       let symbol = '005930';
@@ -119,10 +140,12 @@ async function fetchLiveUsNews() {
       const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
       const descMatch = it.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
 
-      const title = (titleMatch ? titleMatch[1] : '').trim();
+      let title = (titleMatch ? titleMatch[1] : '').trim();
       const link = (linkMatch ? linkMatch[1] : '#').trim();
       const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
-      const desc = (descMatch ? descMatch[1] : '').replace(/<[^>]*>?/gm, '').trim();
+      
+      title = cleanHtmlText(title, '');
+      const desc = cleanHtmlText(descMatch ? descMatch[1] : '', title);
 
       if (!title) continue;
 

@@ -371,13 +371,35 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                       onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-brand)'}
                       onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}
                     >
-                      {item.title}
+                      {item.title
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&amp;/g, '&')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#39;/g, "'")
+                        .replace(/&nbsp;/g, ' ')
+                        .replace(/<[^>]*>?/gm, '')
+                        .trim()}
                     </a>
                   </h4>
 
                   {/* 기사 / 공시 요약 */}
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {item.summary}
+                    {(() => {
+                      const clean = item.summary
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&amp;/g, '&')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#39;/g, "'")
+                        .replace(/&nbsp;/g, ' ')
+                        .replace(/<[^>]*>?/gm, '')
+                        .trim();
+                      if (!clean || clean.length <= 15 || clean === item.title) {
+                        return `${item.companyName || '해당 종목'} 관련 실시간 주요 속보입니다. 상세 내용은 출처 원문 기사를 확인하세요.`;
+                      }
+                      return clean;
+                    })()}
                   </p>
                 </div>
 
