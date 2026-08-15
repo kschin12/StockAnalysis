@@ -1,0 +1,9 @@
+node_modules/
+frontend/node_modules/
+server/node_modules/
+.venv/
+.git/
+.env
+.DS_Store
+Thumbs.db
+*.log

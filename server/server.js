@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const { getIndices, getSectors, getStocks, getStock, getNews } = require('./db');
 const { runRealtimeCollection } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
@@ -117,7 +119,18 @@ app.get('/api/quant/metrics', async (req, res) => {
   }
 });
 
+// 9. 프로덕션 프론트엔드 정적 파일 서빙 (Single Port 통합 배포)
+const distPath = path.join(__dirname, '..', 'frontend', 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 AlphaQuant REST API Server listening on port ${PORT}`);
-  console.log(`👉 http://localhost:${PORT}/api/health`);
+  console.log(`👉 Web App & API: http://localhost:${PORT}`);
 });
