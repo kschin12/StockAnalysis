@@ -6,7 +6,7 @@ import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
 import { getSavedPresets, saveCustomPreset, deleteCustomPreset, getWatchlist, toggleWatchlist } from './utils/storage';
-import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection } from './api/stockApi';
+import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection } from './api/stockApi';
 import { RefreshCw, Zap } from 'lucide-react';
 
 const INITIAL_FILTERS: FilterState = {
@@ -40,6 +40,7 @@ export const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
+  const [isDartSyncing, setIsDartSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
   const loadAllData = useCallback(async () => {
@@ -78,6 +79,22 @@ export const App: React.FC = () => {
       alert('실시간 시세 수집에 실패했습니다. 백엔드 서버 상태를 확인해 주세요.');
     } finally {
       setIsCollecting(false);
+    }
+  };
+
+  const handleDartSync = async () => {
+    setIsDartSyncing(true);
+    try {
+      const res = await triggerDartCollection();
+      if (res.success) {
+        await loadAllData();
+        alert(`✅ DART 재무제표 동기화 완료! (${res.syncedCount}개 기업 실적 반영)`);
+      }
+    } catch (e) {
+      console.error('DART 동기화 실패:', e);
+      alert('DART 재무제표 동기화에 실패했습니다.');
+    } finally {
+      setIsDartSyncing(false);
     }
   };
 
@@ -183,7 +200,18 @@ export const App: React.FC = () => {
             title="Yahoo Finance 무료 피드로부터 최신 시세와 지수를 즉시 크롤링하여 DB에 갱신합니다."
           >
             <Zap size={13} className={isCollecting ? 'animate-pulse' : ''} />
-            {isCollecting ? '실시간 시세 수집 중...' : '⚡ 실시간 시세 즉시 갱신'}
+            {isCollecting ? '시세 수집 중...' : '⚡ 실시간 시세 갱신'}
+          </button>
+
+          <button
+            onClick={handleDartSync}
+            disabled={isDartSyncing}
+            className="btn btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+            title="금융감독원 DART에서 최신 분기/사업보고서 재무제표(매출, 영업이익, 순이익)를 동기화합니다."
+          >
+            <span style={{ fontSize: '0.85rem' }}>📦</span>
+            {isDartSyncing ? 'DART 수집 중...' : 'DART 재무 동기화'}
           </button>
 
           <button
@@ -193,7 +221,7 @@ export const App: React.FC = () => {
             style={{ padding: '5px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
             <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
-            DB 새로고침
+            새로고침
           </button>
         </div>
       </div>

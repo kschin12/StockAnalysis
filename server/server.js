@@ -5,6 +5,7 @@ const fs = require('fs');
 const { getIndices, getSectors, getStocks, getStock, getNews } = require('./db');
 const { runRealtimeCollection } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
+const { runDartFinancialSync } = require('./dartCollector');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -108,7 +109,18 @@ app.post('/api/collect/realtime', async (req, res) => {
   }
 });
 
-// 8. 시장 통계 기반 동적 퀀트 추천 기준 산출
+// 8. DART 재무제표 동기화 실행 (Node.js 기반)
+app.post('/api/collect/dart', async (req, res) => {
+  try {
+    const result = await runDartFinancialSync();
+    res.json(result);
+  } catch (err) {
+    console.error('DART sync error:', err);
+    res.status(500).json({ error: 'Failed to sync DART data' });
+  }
+});
+
+// 9. 시장 통계 기반 동적 퀀트 추천 기준 산출
 app.get('/api/quant/metrics', async (req, res) => {
   try {
     const metrics = await evaluateMarketQuantMetrics();
@@ -119,7 +131,7 @@ app.get('/api/quant/metrics', async (req, res) => {
   }
 });
 
-// 9. 프로덕션 프론트엔드 정적 파일 서빙 (Single Port 통합 배포)
+// 10. 프로덕션 프론트엔드 정적 파일 서빙 (Single Port 통합 배포)
 const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));

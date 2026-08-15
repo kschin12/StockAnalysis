@@ -62,6 +62,20 @@ function initTablesAndSeed() {
       )
     `);
 
+    // 3. Financials (DART 분기/연간 실적)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS financials (
+        symbol TEXT NOT NULL,
+        fiscal_year INTEGER NOT NULL,
+        quarter TEXT NOT NULL,
+        revenue REAL,
+        operating_income REAL,
+        net_income REAL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (symbol, fiscal_year, quarter)
+      )
+    `);
+
     // 3. Sectors
     db.run(`
       CREATE TABLE IF NOT EXISTS sectors (
