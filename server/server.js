@@ -149,13 +149,48 @@ app.get('/api/quant/metrics', async (req, res) => {
   }
 });
 
-// 10. 동적 종목 디스커버리 랭킹 (한국 + 미국 지원)
+// 10. 동적 종목 디스커버리 랭킹 (한국 + 미국 지원) - 초고속 DB 즉시 반환 + 비동기 백그라운드 갱신
 app.get('/api/rankings/:category', async (req, res) => {
   try {
     const { category } = req.params;
     const { market } = req.query; // 'ALL', 'KRX', 'US'
-    const result = await runDynamicCollection(category, market || 'ALL');
-    res.json(result);
+    
+    let orderBy = 'marketCap DESC';
+    if (category === 'volume') orderBy = 'volume DESC';
+    else if (category === 'rise') orderBy = 'changeRate DESC';
+    else if (category === 'tech') orderBy = 'roe DESC';
+
+    let whereConditions = ['price > 0'];
+    if (market === 'KRX') {
+      whereConditions.push("(market = 'KRX' OR currency = 'KRW')");
+    } else if (market === 'US') {
+      whereConditions.push("(market = 'US' OR currency = 'USD')");
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const query = `SELECT * FROM stocks ${whereClause} ORDER BY ${orderBy} LIMIT 60`;
+
+    const { db } = require('./db');
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error('DB Rankings error:', err);
+        return res.status(500).json({ error: 'Database ranking query failed' });
+      }
+
+      // 백그라운드에서 비동기로 추가 수집 (클라이언트 응답 지연 없음)
+      runDynamicCollection(category, market || 'ALL').catch(e => {
+        console.warn('[Background Dynamic Collection Warning]', e.message);
+      });
+
+      res.json({
+        success: true,
+        category,
+        market: market || 'ALL',
+        count: rows.length,
+        data: rows,
+        timestamp: new Date().toISOString()
+      });
+    });
   } catch (err) {
     console.error('Rankings error:', err);
     res.status(500).json({ error: 'Failed to fetch rankings' });

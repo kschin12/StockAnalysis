@@ -71,8 +71,27 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
     loadDynamic();
   }, [activeCategory, filters.market]);
 
-  // 필터 적용 로직
-  const baseStocks = activeCategory === 'all' ? stocks : dynamicStocks;
+  // 필터 적용 로직 (카테고리 선택 시 0초 즉시 정렬 표시)
+  const getCategoryBaseStocks = () => {
+    if (activeCategory === 'all') {
+      return stocks;
+    }
+    if (activeCategory === 'watchlist') {
+      return dynamicStocks.length > 0 ? dynamicStocks : stocks.filter(s => watchlist.includes(s.symbol));
+    }
+    if (activeCategory === 'market_cap') {
+      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+    }
+    if (activeCategory === 'volume') {
+      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+    }
+    if (activeCategory === 'rise') {
+      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
+    }
+    return dynamicStocks.length > 0 ? dynamicStocks : stocks;
+  };
+
+  const baseStocks = getCategoryBaseStocks();
   const filteredStocks = baseStocks.filter(s => {
     // 1. Market
     if (filters.market !== 'ALL') {
