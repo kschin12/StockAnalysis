@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts';
 import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightweight-charts';
 import type { Stock, NewsItem } from '../../types/stock';
-import { generateSampleCandles } from '../../mock/stockData';
+import { generateMockCandles } from '../../mock/stockData';
 import { TrendingUp, TrendingDown, ShieldAlert, Newspaper } from 'lucide-react';
 
 interface StockChartProps {
@@ -79,9 +79,9 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
     });
 
     // 데이터 세팅
-    const candles = generateSampleCandles(stock.price, periodDays);
+    const candles = generateMockCandles(stock.price, periodDays);
 
-    const candleData: CandlestickData[] = candles.map(c => ({
+    const candleData: CandlestickData[] = candles.map((c: any) => ({
       time: c.time as any,
       open: c.open,
       high: c.high,
@@ -89,7 +89,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
       close: c.close
     }));
 
-    const volumeData: HistogramData[] = candles.map(c => ({
+    const volumeData: HistogramData[] = candles.map((c: any) => ({
       time: c.time as any,
       value: c.volume || 1000000,
       color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(244, 63, 94, 0.35)'
@@ -100,7 +100,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
     for (let i = 0; i < candles.length; i++) {
       if (i >= 19) {
         const slice = candles.slice(i - 19, i + 1);
-        const avg = slice.reduce((sum, item) => sum + item.close, 0) / 20;
+        const avg = slice.reduce((sum: number, item: any) => sum + item.close, 0) / 20;
         ma20Data.push({ time: candles[i].time as any, value: avg });
       }
     }
