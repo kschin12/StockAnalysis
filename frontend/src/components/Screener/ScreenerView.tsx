@@ -34,12 +34,22 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   onToggleWatchlist,
   onSelectStock
 }) => {
-  // 동적 추천 기준 원클릭 주입
+  // 동적 추천 기준 원클릭 주입 (기존 필터와 누적/중복되지 않도록 클린 리셋 후 적용)
   const handleApplyDynamicFilters = (partial: Partial<FilterState>) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters({
+      market: 'ALL',
+      assetType: 'ALL',
+      minRoe: '',
+      maxPer: '',
+      maxPbr: '',
+      minDividend: '',
+      minMarketCap: '',
+      maxDebtRatio: '',
+      minRsi: '',
+      maxRsi: '',
+      searchQuery: filters.searchQuery || '',
       ...partial
-    }));
+    });
   };
 
   const [activeCategory, setActiveCategory] = useState<'all' | 'market_cap' | 'volume' | 'rise' | 'watchlist'>('market_cap');
