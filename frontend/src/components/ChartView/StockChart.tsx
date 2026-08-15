@@ -4,7 +4,7 @@ import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightw
 import type { Stock, NewsItem } from '../../types/stock';
 import { fetchStockCandles } from '../../api/stockApi';
 import { generateMockCandles } from '../../mock/stockData';
-import { TrendingUp, TrendingDown, Newspaper, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Newspaper, Loader2, ExternalLink } from 'lucide-react';
 import { getBadgeDetail, calculateBadgeTooltipPosition } from '../../utils/badgeDetails';
 import type { ActiveTooltipState } from '../../utils/badgeDetails';
 import { BadgeTooltipPortal } from '../common/BadgeTooltipPortal';
@@ -23,7 +23,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [activeBadgeTooltip, setActiveBadgeTooltip] = useState<ActiveTooltipState | null>(null);
 
-  // 스크롤 시 팝업 닫기
   useEffect(() => {
     const handleScroll = () => setActiveBadgeTooltip(null);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -59,7 +58,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
 
     let isMounted = true;
 
-    // 차트 초기화
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
@@ -86,7 +84,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
 
     chartInstanceRef.current = chart;
 
-    // 1. Candlestick Series
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981',
       downColor: '#f43f5e',
@@ -96,25 +93,22 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
       wickDownColor: '#f43f5e'
     });
 
-    // 2. Volume Series (하단 배치)
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#6366f1',
       priceFormat: { type: 'volume' },
-      priceScaleId: '', // overlay
+      priceScaleId: '',
     });
 
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 }
     });
 
-    // 3. Moving Average Line Series (20일선)
     const ma20Series = chart.addSeries(LineSeries, {
       color: '#f59e0b',
       lineWidth: 2,
       title: 'MA20'
     });
 
-    // 실제 데이터 비동기 로딩
     async function loadCandles() {
       setIsLoadingCandles(true);
       try {
@@ -139,7 +133,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(244, 63, 94, 0.35)'
         }));
 
-        // 20일 이동평균선 계산
         const ma20Data: LineData[] = [];
         for (let i = 0; i < candles.length; i++) {
           if (i >= 19) {
@@ -180,7 +173,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Top Header Card */}
       <div className="glass-card" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
@@ -206,7 +198,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           </div>
         </div>
 
-        {/* Stock Switcher dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>다른 종목 조회:</label>
           <select
@@ -223,7 +214,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
         </div>
       </div>
 
-      {/* Chart & Technical Box */}
       <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -253,13 +243,10 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           </div>
         </div>
 
-        {/* Chart Canvas */}
         <div ref={chartContainerRef} style={{ width: '100%', height: '420px' }} />
       </div>
 
-      {/* Key Metrics Grid & News Split */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        {/* Valuation & Fundamental Cards */}
         <div className="glass-card" style={{ padding: '20px' }}>
           <h3 style={{ fontSize: '1.05rem', marginBottom: '16px' }}>핵심 밸류에이션 & 퀀트 지표</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -314,7 +301,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
             </div>
           </div>
 
-          {/* 위험 / 퀀트 신호 (종목 스크리너와 동일하게 모멘텀 및 리스크 신호 표시) */}
           <div style={{ marginTop: '16px', padding: '14px 16px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>위험 / 퀀트 신호</div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -349,7 +335,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           </div>
         </div>
 
-        {/* Related News & DART Disclosures */}
         <div className="glass-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <Newspaper size={18} color="var(--color-brand)" />
@@ -374,10 +359,19 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                     </span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{n.date}</span>
                   </div>
-                  <h4 style={{ fontSize: '0.9rem', marginBottom: '4px' }}>{n.title}</h4>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '4px' }}>
+                    <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {n.title}
+                    </a>
+                  </h4>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                     {n.summary}
                   </p>
+                  <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                    <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--color-brand)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      원문 보기 <ExternalLink size={10} />
+                    </a>
+                  </div>
                 </div>
               ))
             ) : (
@@ -389,7 +383,6 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
         </div>
       </div>
 
-      {/* Floating Detailed Hover Tooltip (Body Portal) */}
       <BadgeTooltipPortal tooltip={activeBadgeTooltip} />
     </div>
   );
