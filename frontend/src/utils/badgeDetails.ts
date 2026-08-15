@@ -105,21 +105,33 @@ export function getBadgeDetail(badgeName: string, type: 'risk' | 'momentum'): Ba
   };
 }
 
-// 배지 바로 옆에 밀착되는 팝업 위치 계산
-export function calculateBadgeTooltipPosition(rect: DOMRect, tooltipWidth = 320, tooltipHeight = 150): { x: number; y: number } {
-  // 기본: 배지 우측 바로 옆 (+8px)
-  let x = rect.right + 8;
-  let y = rect.top - 6;
+// 배지 바로 옆(우측 또는 좌측)에 정확하게 밀착되는 팝업 위치 계산
+export function calculateBadgeTooltipPosition(
+  rect: DOMRect,
+  tooltipWidth = 320,
+  tooltipHeight = 160
+): { x: number; y: number } {
+  // 1. 기본 위치: 배지 우측 바로 옆 (+12px)
+  let x = rect.right + 12;
+  let y = rect.top - 8;
 
-  // 우측 화면을 벗어날 경우: 배지 바로 아래(우측 정렬 밀착)로 배치
+  // 2. 우측 화면 공간이 부족한 경우: 배지 좌측 바로 옆 (-12px)
   if (x + tooltipWidth > window.innerWidth - 16) {
-    x = Math.max(16, rect.right - tooltipWidth);
-    y = rect.bottom + 8;
+    x = rect.left - tooltipWidth - 12;
   }
 
-  // 아래쪽 화면을 벗어날 경우: 배지 바로 위로 올림
+  // 3. 만약 화면이 좁아서 좌측으로도 넘칠 경우: 화면 좌측 마진 16px에 맞추고 배지 바로 아래로 배치
+  if (x < 16) {
+    x = Math.max(16, Math.min(rect.left, window.innerWidth - tooltipWidth - 16));
+    y = rect.bottom + 10;
+  }
+
+  // 4. 세로 화면(상/하) 경계 내 클램핑
   if (y + tooltipHeight > window.innerHeight - 16) {
-    y = Math.max(16, rect.top - tooltipHeight - 8);
+    y = window.innerHeight - tooltipHeight - 16;
+  }
+  if (y < 16) {
+    y = 16;
   }
 
   return { x, y };
