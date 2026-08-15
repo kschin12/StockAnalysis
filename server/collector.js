@@ -718,36 +718,54 @@ async function updateStockPrices() {
   return updated;
 }
 
-// 13. 전 시장 랭킹 및 시세 정기 자동 수집 (주기적 백그라운드 캐시)
+// 13. 전 시장 랭킹 및 시세 정기 자동 수집 (당일 상위 종목만 엄선하여 저장 및 DB 정돈)
 async function refreshAllRankingsAndSave() {
-  console.log('🔄 [Background Cron] 전 시장 랭킹 및 시세 정기 자동 수집 시작...');
+  console.log('🔄 [Today Top Stocks] 당일 시장 상위 핵심 종목 수집 및 DB 정돈 시작...');
   try {
     // 1. 시가총액 상위
-    await runDynamicCollection('market_cap', 'ALL');
+    const mcRes = await runDynamicCollection('market_cap', 'ALL');
     // 2. 거래량 상위
-    await runDynamicCollection('volume', 'ALL');
-    // 3. 급등주
-    await runDynamicCollection('rise', 'ALL');
+    const volRes = await runDynamicCollection('volume', 'ALL');
+    // 3. 급등주 (당일 상승률 상위)
+    const riseRes = await runDynamicCollection('rise', 'ALL');
     // 4. 시장 지수 및 환율
-    await updateMarketIndices();
-    console.log('✅ [Background Cron] 전 시장 랭킹 및 시세 정기 갱신 완료!');
+    const indices = await updateMarketIndices();
+
+    // 5. 오늘 상위 활성 종목 + 사용자 관심종목(Watchlist)만 보존
+    const topSymbols = new Set([
+      ...(mcRes?.data?.map(s => s.symbol) || []),
+      ...(volRes?.data?.map(s => s.symbol) || []),
+      ...(riseRes?.data?.map(s => s.symbol) || [])
+    ]);
+
+    // 관심종목(Watchlist)에 등록된 종목은 안전하게 보존
+    const watchRows = await dbAllAsync(`SELECT symbol FROM watchlist`);
+    watchRows.forEach(w => topSymbols.add(w.symbol));
+
+    if (topSymbols.size > 0) {
+      const allowed = Array.from(topSymbols);
+      const placeholders = allowed.map(() => '?').join(',');
+      await dbRunAsync(`DELETE FROM stocks WHERE symbol NOT IN (${placeholders})`, allowed);
+      console.log(`🧹 [Clean] 오늘 상위 핵심 종목 및 관심종목 총 ${allowed.length}개로 DB 정돈 완료!`);
+    }
+
+    const currentStocks = await dbAllAsync(`SELECT * FROM stocks`);
+    return {
+      success: true,
+      updatedIndicesCount: indices.length,
+      updatedStocksCount: currentStocks.length,
+      timestamp: new Date().toISOString()
+    };
   } catch (err) {
-    console.warn('❌ [Background Cron Warning]', err.message);
+    console.warn('❌ [Today Top Stocks Warning]', err.message);
+    return { success: false, updatedIndicesCount: 0, updatedStocksCount: 0, timestamp: new Date().toISOString() };
   }
 }
 
-// 14. 실시간 수집 마스터 실행 함수
+// 14. 실시간 수집 마스터 실행 함수 (오늘 상위 종목 중심)
 async function runRealtimeCollection() {
-  console.log('⚡ 실시간 시장 데이터 수집 시작 (국내 지수/종목 + 미국 지수/종목)...');
-  const indices = await updateMarketIndices();
-  const stocks = await updateStockPrices();
-  console.log(`✅ 실시간 수집 완료 (지수 ${indices.length}건, 종목 ${stocks.length}건 갱신)`);
-  return {
-    success: true,
-    updatedIndicesCount: indices.length,
-    updatedStocksCount: stocks.length,
-    timestamp: new Date().toISOString()
-  };
+  console.log('⚡ 실시간 오늘 상위 시장 데이터 수집 시작...');
+  return await refreshAllRankingsAndSave();
 }
 
 module.exports = {
