@@ -4,7 +4,6 @@ import { MarketDashboard } from './components/MarketDashboard/MarketDashboard';
 import { ScreenerView } from './components/Screener/ScreenerView';
 import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
-import { MarketSummaryView } from './components/MarketSummary/MarketSummaryView';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
 import { getSavedPresets, saveCustomPreset, deleteCustomPreset } from './utils/storage';
 import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection } from './api/stockApi';
@@ -30,21 +29,21 @@ export const App: React.FC = () => {
     const hash = window.location.hash.replace('#', '');
     if (!hash) return { tab: 'dashboard' as const, symbol: '005930' };
     const [tabPart, queryPart] = hash.split('?');
-    const validTabs: Array<'dashboard' | 'screener' | 'chart' | 'news' | 'summary'> = ['dashboard', 'screener', 'chart', 'news', 'summary'];
-    const tab = validTabs.includes(tabPart as any) ? (tabPart as 'dashboard' | 'screener' | 'chart' | 'news' | 'summary') : 'dashboard';
+    const validTabs: Array<'dashboard' | 'screener' | 'chart' | 'news'> = ['dashboard', 'screener', 'chart', 'news'];
+    const tab = validTabs.includes(tabPart as any) ? (tabPart as 'dashboard' | 'screener' | 'chart' | 'news') : 'dashboard';
     const params = new URLSearchParams(queryPart || '');
     const symbol = params.get('symbol') || '005930';
     return { tab, symbol };
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'screener' | 'chart' | 'news' | 'summary'>(() => parseHash().tab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'screener' | 'chart' | 'news'>(() => parseHash().tab);
   const [selectedStockSymbol, setSelectedStockSymbol] = useState<string>(() => parseHash().symbol);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [presets, setPresets] = useState<CustomPreset[]>([]);
   const [watchlist, setWatchlist] = useState<string[]>([]);
   
   // 탭 변경 시 브라우저 히스토리에 푸시 (이전/다음 페이지 활성화)
-  const handleTabChange = (tab: 'dashboard' | 'screener' | 'chart' | 'news' | 'summary') => {
+  const handleTabChange = (tab: 'dashboard' | 'screener' | 'chart' | 'news') => {
     setActiveTab(tab);
     const newHash = tab === 'chart' ? `#chart?symbol=${selectedStockSymbol}` : `#${tab}`;
     if (window.location.hash !== newHash) {
@@ -338,12 +337,6 @@ export const App: React.FC = () => {
             {activeTab === 'news' && (
               <NewsFeed
                 news={news}
-                onSelectStock={handleSelectStock}
-              />
-            )}
-
-            {activeTab === 'summary' && (
-              <MarketSummaryView
                 indices={indices}
                 sectors={sectors}
                 stocks={stocks}

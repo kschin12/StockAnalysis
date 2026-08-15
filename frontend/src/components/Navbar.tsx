@@ -1,9 +1,9 @@
 import React from 'react';
-import { Activity, Filter, BarChart3, Newspaper, Sparkles, Compass } from 'lucide-react';
+import { Activity, Filter, BarChart3, Newspaper, Sparkles } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'dashboard' | 'screener' | 'chart' | 'news' | 'summary';
-  setActiveTab: (tab: 'dashboard' | 'screener' | 'chart' | 'news' | 'summary') => void;
+  activeTab: 'dashboard' | 'screener' | 'chart' | 'news';
+  setActiveTab: (tab: 'dashboard' | 'screener' | 'chart' | 'news') => void;
   selectedStockSymbol: string;
 }
 
@@ -83,15 +83,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
         >
           <Newspaper size={16} />
           뉴스 & 공시
-        </button>
-
-        <button
-          onClick={() => setActiveTab('summary')}
-          className={`btn ${activeTab === 'summary' ? 'btn-primary' : 'btn-ghost'}`}
-          style={{ padding: '8px 14px' }}
-        >
-          <Compass size={16} />
-          시장 요약
         </button>
       </nav>
 
