@@ -300,6 +300,12 @@ app.listen(PORT, () => {
   console.log(`🚀 AlphaQuant REST API Server listening on port ${PORT}`);
   console.log(`👉 Web App & API: http://localhost:${PORT}`);
 
+  // 서버 최초 시작 2초 후 초기 DB 동기화 실행 (신규 배포 시 즉각 데이터 확보)
+  setTimeout(() => {
+    refreshAllRankingsAndSave().catch(e => console.warn('Initial rankings sync warning:', e.message));
+    syncAllRealNews().catch(e => console.warn('Initial news sync warning:', e.message));
+  }, 2000);
+
   // =========================================================================
   // 🔍 [DAILY_6AM_SCHEDULE] 미접속 시 매일 오전 6시(06:00) 전 테이블 백엔드 자동 수집
   // 검색 키워드: DAILY_6AM_SCHEDULE 또는 '매일 6시 수집'
