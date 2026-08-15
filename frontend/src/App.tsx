@@ -276,13 +276,11 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content Area (전체 화면 폭 풀와이드 활용) */}
       <main style={{
         flex: 1,
-        maxWidth: '1440px',
         width: '100%',
-        margin: '0 auto',
-        padding: '24px 20px',
+        padding: '24px 32px',
         display: 'flex',
         flexDirection: 'column',
         gap: '24px'
