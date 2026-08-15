@@ -57,7 +57,9 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
     setActiveBadgeTooltip(null);
   };
 
-  const relatedNews = searchedNews !== null ? searchedNews : news.filter(n => n.symbol === stock.symbol);
+  const relatedNews = searchedNews !== null 
+    ? searchedNews.slice(0, 10) 
+    : news.filter(n => n.symbol === stock.symbol).slice(0, 5);
   const isUp = stock.changeRate >= 0;
 
   const handleSearchNews = async () => {
