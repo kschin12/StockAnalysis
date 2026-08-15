@@ -1869,34 +1869,6 @@ export const MOCK_STOCKS: Stock[] = [
     "high52w": 552,
     "low52w": 412,
     "currency": "USD"
-  },
-  {
-    "symbol": "999999",
-    "name": "부실건설 (가상)",
-    "market": "KRX",
-    "assetType": "STOCK",
-    "sector": "건설업",
-    "price": 3200,
-    "changeRate": -3.5,
-    "volume": 420000,
-    "marketCap": 450,
-    "per": 2.8,
-    "pbr": 0.35,
-    "psr": 0.15,
-    "roe": 1.2,
-    "dividendYield": 0,
-    "debtRatio": 320,
-    "currentRatio": 82,
-    "interestCoverage": 0.6,
-    "rsi14": 28,
-    "high52w": 5000,
-    "low52w": 3000,
-    "currency": "KRW",
-    "warningBadges": [
-      "가치함정 의심",
-      "이자보상 1 미만",
-      "고부채(300%↑)"
-    ]
   }
 ];
 
@@ -1945,18 +1917,6 @@ export const MOCK_NEWS: NewsItem[] = [
     date: '2026-08-15 08:40',
     url: 'https://finance.yahoo.com',
     sentiment: 'positive'
-  },
-  {
-    id: 'n5',
-    symbol: '999999',
-    companyName: '부실건설',
-    title: '[공시] 단기차입금 상환 연장 및 전환사채 발행 추진',
-    summary: 'PF 우발채무 리스크 확대로 신용등급 강등 위기 및 유동성 확보 비상.',
-    source: 'DART 전자공시',
-    date: '2026-08-15 09:00',
-    url: 'https://opendart.fss.or.kr',
-    sentiment: 'negative',
-    isDisclosure: true
   }
 ];
 

@@ -282,17 +282,25 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
             </div>
           </div>
 
-          {/* Warning Badges if any */}
-          {stock.warningBadges && stock.warningBadges.length > 0 && (
-            <div style={{ marginTop: '16px', padding: '12px', background: 'var(--color-warning-bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-warning)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-warning)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
-                <ShieldAlert size={16} /> 가치함정 및 리스크 요인
+          {/* Warning Badges or Safe Indicator */}
+          {stock.warningBadges && stock.warningBadges.length > 0 ? (
+            <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(239, 68, 68, 0.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
+                <ShieldAlert size={16} /> 가치함정 및 리스크 감지
               </div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {stock.warningBadges.map((b, i) => (
-                  <span key={i} className="badge badge-warning">{b}</span>
+                  <span key={i} style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                    {b}
+                  </span>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#10b981', fontWeight: 600, fontSize: '0.82rem' }}>
+                위험 요인 없음 (재무 건전성 정상)
+              </span>
             </div>
           )}
         </div>

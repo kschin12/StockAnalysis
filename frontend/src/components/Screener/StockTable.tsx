@@ -311,13 +311,37 @@ export const StockTable: React.FC<StockTableProps> = ({
                       {stk.warningBadges && stk.warningBadges.length > 0 ? (
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
                           {stk.warningBadges.map((b, idx) => (
-                            <span key={idx} className="badge badge-warning" style={{ fontSize: '0.68rem' }} title={b}>
-                              ⚠️ {b}
+                            <span
+                              key={idx}
+                              style={{
+                                fontSize: '0.68rem',
+                                padding: '2px 6px',
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                borderRadius: '4px',
+                                fontWeight: 600
+                              }}
+                              title={b}
+                            >
+                              {b}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>정상</span>
+                        <span
+                          style={{
+                            color: '#10b981',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(16, 185, 129, 0.2)'
+                          }}
+                        >
+                          위험 없음
+                        </span>
                       )}
                     </td>
                   </tr>
