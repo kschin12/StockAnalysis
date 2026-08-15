@@ -4,7 +4,7 @@ import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightw
 import type { Stock, NewsItem } from '../../types/stock';
 import { fetchStockCandles } from '../../api/stockApi';
 import { generateMockCandles } from '../../mock/stockData';
-import { TrendingUp, TrendingDown, ShieldAlert, Newspaper, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Newspaper, Loader2 } from 'lucide-react';
 
 interface StockChartProps {
   stock: Stock;
@@ -282,27 +282,29 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
             </div>
           </div>
 
-          {/* Warning Badges or Safe Indicator */}
-          {stock.warningBadges && stock.warningBadges.length > 0 ? (
-            <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(239, 68, 68, 0.35)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
-                <ShieldAlert size={16} /> 가치함정 및 리스크 감지
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {stock.warningBadges.map((b, i) => (
-                  <span key={i} style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f87171' }}>
-                    {b}
-                  </span>
-                ))}
-              </div>
+          {/* 위험 / 퀀트 신호 (종목 스크리너와 동일하게 모멘텀 및 리스크 신호 표시) */}
+          <div style={{ marginTop: '16px', padding: '14px 16px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>위험 / 퀀트 신호</div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {stock.warningBadges && stock.warningBadges.map((b, i) => (
+                <span key={`w-${i}`} style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f87171' }}>
+                  {b}
+                </span>
+              ))}
+
+              {stock.momentumBadges && stock.momentumBadges.map((m, i) => (
+                <span key={`m-${i}`} style={{ fontSize: '0.85rem', fontWeight: 600, color: '#818cf8' }}>
+                  {m}
+                </span>
+              ))}
+
+              {(!stock.warningBadges || stock.warningBadges.length === 0) && (!stock.momentumBadges || stock.momentumBadges.length === 0) && (
+                <span style={{ color: '#10b981', fontWeight: 600, fontSize: '0.82rem' }}>
+                  위험 요인 없음 (재무 건전성 정상)
+                </span>
+              )}
             </div>
-          ) : (
-            <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#10b981', fontWeight: 600, fontSize: '0.82rem' }}>
-                위험 요인 없음 (재무 건전성 정상)
-              </span>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Related News & DART Disclosures */}
