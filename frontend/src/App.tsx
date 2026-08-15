@@ -7,7 +7,7 @@ import { NewsFeed } from './components/NewsFeed/NewsFeed';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
 import { getSavedPresets, saveCustomPreset, deleteCustomPreset } from './utils/storage';
 import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection } from './api/stockApi';
-import { RefreshCw, Zap } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 const INITIAL_FILTERS: FilterState = {
   market: 'ALL',
@@ -238,9 +238,9 @@ export const App: React.FC = () => {
         color: 'var(--text-secondary)'
       }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span>📦 로컬 DB: <strong style={{ color: '#fff' }}>data/stocks.db ({stocks.length}개 종목)</strong></span>
-          <span>⚡ API 서버: <strong style={{ color: 'var(--color-up)' }}>Connected (Port 5000)</strong></span>
-          {lastSyncTime && <span>🕒 마지막 동기화: {lastSyncTime}</span>}
+          <span>로컬 DB: <strong style={{ color: '#fff' }}>data/stocks.db ({stocks.length}개 종목)</strong></span>
+          <span>API 서버: <strong style={{ color: 'var(--color-up)' }}>Connected (Port 5000)</strong></span>
+          {lastSyncTime && <span>마지막 동기화: {lastSyncTime}</span>}
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -251,8 +251,7 @@ export const App: React.FC = () => {
             style={{ padding: '5px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
             title="Yahoo Finance 무료 피드로부터 최신 시세와 지수를 즉시 크롤링하여 DB에 갱신합니다."
           >
-            <Zap size={13} className={isCollecting ? 'animate-pulse' : ''} />
-            {isCollecting ? '시세 수집 중...' : '⚡ 실시간 시세 갱신'}
+            {isCollecting ? '시세 수집 중...' : '실시간 시세 갱신'}
           </button>
 
           <button
@@ -262,7 +261,6 @@ export const App: React.FC = () => {
             style={{ padding: '5px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
             title="금융감독원 DART에서 최신 분기/사업보고서 재무제표(매출, 영업이익, 순이익)를 동기화합니다."
           >
-            <span style={{ fontSize: '0.85rem' }}>📦</span>
             {isDartSyncing ? 'DART 수집 중...' : 'DART 재무 동기화'}
           </button>
 

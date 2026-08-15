@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { NewsItem, MarketIndex, SectorPerf, Stock, QuantMetrics } from '../../types/stock';
-import { Newspaper, FileText, ExternalLink, ChevronLeft, ChevronRight, Sparkles, TrendingUp, TrendingDown, Flame } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface NewsFeedProps {
   news: NewsItem[];
@@ -20,7 +20,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
 }) => {
   const [filterType, setFilterType] = useState<'ALL' | 'IMPORTANT' | 'NEWS' | 'DISCLOSURE'>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 9; // 한 페이지에 9개씩 넉넉하게 표출
+  const pageSize = 9; // 한 페이지에 9개씩
 
   // --- 국내 및 미국 데이터 분리 ---
   const krxStocks = stocks.filter(s => s.market === 'KRX' || s.currency === 'KRW');
@@ -52,7 +52,6 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
     if (filterType === 'DISCLOSURE') return n.isDisclosure;
     return true;
   }).sort((a, b) => {
-    // 중요도(5점->1점) 높은 순 우선, 그 후 최신 날짜 순
     const impA = a.importance || 3;
     const impB = b.importance || 3;
     if (impB !== impA) return impB - impA;
@@ -71,10 +70,10 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* ========================================================= */}
-      {/* 1. 글로벌 시황 종합 브리핑 (국내 증시 & 글로벌 시장 2-Column 심층 분석) */}
+      {/* 1. 글로벌 시황 종합 브리핑 (국내 증시 & 글로벌 시장 심층 분석) */}
       {/* ========================================================= */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* 상단 통합 타이틀 헤더 */}
+        {/* 상단 헤더 */}
         <div className="glass-card" style={{
           padding: '18px 24px',
           display: 'flex',
@@ -85,26 +84,16 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
           background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)',
           border: '1px solid rgba(99, 102, 241, 0.35)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              background: 'rgba(99, 102, 241, 0.25)',
-              padding: '8px',
-              borderRadius: '8px',
-              color: 'var(--color-brand)'
-            }}>
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>글로벌 시황 종합 브리핑</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '2px' }}>
-                국내(KRX) 및 글로벌/미국(US) 시장의 수급, 주도 섹터, 거시경제 매크로 환경을 정밀하게 분석합니다.
-              </p>
-            </div>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>글로벌 시황 종합 브리핑</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '2px' }}>
+              국내(KRX) 및 글로벌/미국(US) 시장의 수급, 주도 섹터, 거시경제 매크로 환경을 정밀하게 분석합니다.
+            </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>실시간 퀀트 시황 엔진 가동 중</span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>실시간 퀀트 시황 동기화</span>
           </div>
         </div>
 
@@ -114,7 +103,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
           gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
           gap: '16px'
         }}>
-          {/* 🇰🇷 1. 국내 시장 (KRX) 심층 시황 브리핑 */}
+          {/* 1. 국내 시장 (KRX) 심층 시황 브리핑 */}
           <div className="glass-card" style={{
             padding: '22px 24px',
             display: 'flex',
@@ -125,10 +114,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
           }}>
             {/* 국내 헤더 & 지수 티커 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.15rem' }}>🇰🇷</span>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#93c5fd' }}>국내 증시 (KRX) 시황 브리핑</h3>
-              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#93c5fd' }}>국내 증시 (KRX) 시황 브리핑</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {krxIndices.map(idx => (
                   <span key={idx.code} style={{
@@ -187,7 +173,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
             </div>
           </div>
 
-          {/* 🇺🇸 2. 글로벌 / 미국 시장 (US) 심층 시황 브리핑 */}
+          {/* 2. 글로벌 / 미국 시장 (US) 심층 시황 브리핑 */}
           <div className="glass-card" style={{
             padding: '22px 24px',
             display: 'flex',
@@ -198,10 +184,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
           }}>
             {/* 글로벌 헤더 & 지수 티커 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.15rem' }}>🇺🇸</span>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d8b4fe' }}>글로벌 / 미국 증시 (US) 시황 브리핑</h3>
-              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d8b4fe' }}>글로벌 / 미국 증시 (US) 시황 브리핑</h3>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {usIndices.slice(0, 3).map(idx => (
                   <span key={idx.code} style={{
@@ -230,7 +213,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
             {/* 미국 시황 심층 리포트 */}
             <p style={{ fontSize: '0.84rem', color: '#e2e8f0', lineHeight: 1.6 }}>
               • <strong>매크로 및 빅테크 모멘텀:</strong> 미 연준의 금리 인하 경로에 대한 기대감과 함께 엔비디아, 마이크로소프트, 애플 등 M7 빅테크의 AI 인프라 매출 가시화가 나스닥과 S&P 500 상승을 주도하고 있습니다.<br />
-              • <strong>투자 전략:</strong> 고금리 부담을 자체 현금흐름으로 흡수할 수 있는 글로벌 빅테크 기업과 현금 배당을 꾸준히 늘려가는 미국 고배당성장주(SCHD 등)를 포트폴리오 코어(Core)로 유지하는 전략을 권장합니다.
+              • <strong>투자 전략:</strong> 고금리 부담을 자체 현금흐름으로 흡수할 수 있는 글로벌 빅테크 기업과 현금 배당을 꾸준히 늘려가는 미국 고배당성장주(SCHD 등)를 포트폴리오 코어로 유지하는 전략을 권장합니다.
             </p>
 
             {/* 글로벌 통합 주도 / 약세 섹터 요약 */}
@@ -263,7 +246,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
       </div>
 
       {/* ========================================================= */}
-      {/* 2. 실시간 뉴스 & DART 공시 큐레이션 피드 (중요도 정렬 & 출처 링크) */}
+      {/* 2. 실시간 뉴스 & DART 공시 큐레이션 피드 */}
       {/* ========================================================= */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Header & Filter Controls */}
@@ -282,12 +265,9 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                 총 {filteredNews.length}건
               </span>
             </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              중요도(Impact Score)가 높은 핵심 속보 및 실적/계약 DART 공시를 우선 노출합니다.
-            </p>
           </div>
 
-          {/* Filter Tabs */}
+          {/* Filter Buttons */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <button
               onClick={() => setFilterType('ALL')}
@@ -299,28 +279,28 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
             <button
               onClick={() => setFilterType('IMPORTANT')}
               className={`btn ${filterType === 'IMPORTANT' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              <Flame size={14} color="#f59e0b" /> 중요 뉴스&공시만
+              중요 뉴스&공시만
             </button>
             <button
               onClick={() => setFilterType('NEWS')}
               className={`btn ${filterType === 'NEWS' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              <Newspaper size={14} /> 뉴스만
+              뉴스만
             </button>
             <button
               onClick={() => setFilterType('DISCLOSURE')}
               className={`btn ${filterType === 'DISCLOSURE' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              <FileText size={14} /> DART 공시만
+              DART 공시만
             </button>
           </div>
         </div>
 
-        {/* News Grid (3-Column Layout) */}
+        {/* News Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
@@ -340,56 +320,31 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  border: isHighImportance ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
-                  background: isHighImportance ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.04) 0%, rgba(15, 23, 42, 0.7) 100%)' : undefined
+                  border: isHighImportance ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)'
                 }}
               >
                 <div>
-                  {/* Top Badges & Source */}
+                  {/* Top Header: 순서 [핵심주요 별표] -> [삼성전자] -> [날짜] */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      {/* 출처 링크 뱃지 */}
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: item.isDisclosure ? 'rgba(239, 68, 68, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                          color: item.isDisclosure ? '#fca5a5' : '#a5b4fc',
-                          border: item.isDisclosure ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(99, 102, 241, 0.3)',
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px'
-                        }}
-                        title={`출처: ${item.source} (클릭 시 원문 링크 이동)`}
-                      >
-                        {item.isDisclosure ? '📄 ' : '📰 '}출처: {item.source}
-                        <ExternalLink size={10} />
-                      </a>
-
-                      {/* 중요도 배지 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {/* 1. 핵심 주요 / 주요 (테두리 및 배경 없이 별표 텍스트만) */}
                       {isHighImportance && (
-                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid #f59e0b' }}>
-                          ⭐️ 핵심 주요
+                        <span style={{ color: '#fbbf24', fontWeight: 800, fontSize: '0.8rem', letterSpacing: '-0.01em' }}>
+                          ★ 핵심 주요
                         </span>
                       )}
                       {isMediumImportance && (
-                        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
-                          🔥 주요
+                        <span style={{ color: '#818cf8', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '-0.01em' }}>
+                          ★ 주요
                         </span>
                       )}
 
-                      {/* 관련 종목 바로가기 */}
+                      {/* 2. 관련 종목명 (클릭 시 차트로 이동) */}
                       {item.companyName && (
                         <span
                           onClick={() => item.symbol && onSelectStock(item.symbol)}
                           style={{
-                            fontSize: '0.78rem',
+                            fontSize: '0.85rem',
                             fontWeight: 700,
                             color: '#38bdf8',
                             cursor: 'pointer',
@@ -402,6 +357,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                       )}
                     </div>
 
+                    {/* 3. 날짜 */}
                     <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>{item.date}</span>
                   </div>
 
@@ -425,16 +381,17 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                   </p>
                 </div>
 
-                {/* Card Bottom: Sentiment & Link */}
+                {/* Card Bottom: 시그널 & 출처 텍스트 링크 (원문 링크 자리에 출처 대체, 테두리/배경 없음) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
                   <span style={{
                     fontSize: '0.72rem',
                     color: item.sentiment === 'positive' ? 'var(--color-up)' : item.sentiment === 'negative' ? 'var(--color-down)' : 'var(--text-muted)',
                     fontWeight: 700
                   }}>
-                    {item.sentiment === 'positive' ? '📈 긍정적 시그널' : item.sentiment === 'negative' ? '📉 부정적/주의' : '⚖️ 중립'}
+                    {item.sentiment === 'positive' ? '긍정적 시그널' : item.sentiment === 'negative' ? '부정적/주의' : '중립'}
                   </span>
 
+                  {/* 출처 텍스트 링크 */}
                   <a
                     href={item.url}
                     target="_blank"
@@ -444,14 +401,21 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                       alignItems: 'center',
                       gap: '4px',
                       fontSize: '0.78rem',
-                      color: 'var(--color-brand)',
+                      color: 'var(--text-secondary)',
                       textDecoration: 'none',
                       fontWeight: 600
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                    onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--color-brand)';
+                      e.currentTarget.style.textDecoration = 'underline';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.textDecoration = 'none';
+                    }}
+                    title={`클릭 시 ${item.source} 원문 기사/공시 검색으로 이동`}
                   >
-                    원문 링크 보기 <ExternalLink size={12} />
+                    출처: {item.source} <ExternalLink size={12} />
                   </a>
                 </div>
               </div>

@@ -359,6 +359,16 @@ const RICH_INITIAL_NEWS = [
   }
 ];
 
+function getAccurateUrl(item) {
+  if (item.isDisclosure) {
+    return `https://dart.fss.or.kr/dsab007/main.do?option=corp&corpName=${encodeURIComponent(item.companyName || item.symbol || '')}`;
+  }
+  if (item.symbol && item.symbol.length <= 5 && !item.symbol.startsWith('0')) {
+    return `https://finance.yahoo.com/quote/${item.symbol}/news`;
+  }
+  return `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent((item.companyName || '') + ' ' + (item.title || ''))}`;
+}
+
 // DB에 초기 뉴스 및 공시 데이터 적재
 function seedRichNews() {
   return new Promise((resolve, reject) => {
@@ -375,7 +385,8 @@ function seedRichNews() {
 
       for (const n of RICH_INITIAL_NEWS) {
         const imp = n.importance || analyzeImportance(n.title, n.summary, n.isDisclosure);
-        stmt.run([n.id, n.symbol, n.companyName, n.title, n.summary, n.source, n.date, n.url, n.sentiment, n.isDisclosure ? 1 : 0, imp]);
+        const finalUrl = getAccurateUrl(n);
+        stmt.run([n.id, n.symbol, n.companyName, n.title, n.summary, n.source, n.date, finalUrl, n.sentiment, n.isDisclosure ? 1 : 0, imp]);
       }
 
       stmt.finalize((err) => {
