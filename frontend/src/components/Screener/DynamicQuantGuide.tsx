@@ -25,19 +25,24 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
 
   const { krxMetrics, usMetrics, dynamicPresets } = metrics;
 
-  const handleMouseMove = (e: React.MouseEvent, title: string, reason: string, targetCriteria?: string) => {
-    // 뷰포트 경계 계산
+  const showTooltipAtElement = (e: React.MouseEvent<HTMLElement>, title: string, reason: string, targetCriteria?: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
     const tooltipWidth = 320;
-    const tooltipHeight = 160;
-    let x = e.clientX + 14;
-    let y = e.clientY + 14;
+    const tooltipHeight = 150;
 
-    if (x + tooltipWidth > window.innerWidth - 12) {
-      x = e.clientX - tooltipWidth - 14;
+    // 상세설명 요소 바로 오른쪽(+10px)에 정확히 배치
+    let x = rect.right + 10;
+    let y = rect.top - 8;
+
+    // 화면 우측 경계 체크: 우측 공간이 부족하면 요소 좌측에 배치
+    if (x + tooltipWidth > window.innerWidth - 10) {
+      x = rect.left - tooltipWidth - 10;
     }
-    if (y + tooltipHeight > window.innerHeight - 12) {
-      y = window.innerHeight - tooltipHeight - 12;
+    // 화면 하단 경계 체크
+    if (y + tooltipHeight > window.innerHeight - 10) {
+      y = window.innerHeight - tooltipHeight - 10;
     }
+    if (y < 10) y = 10;
 
     setHoverTooltip({
       title,
@@ -68,7 +73,7 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
               동적 퀀트 가이드
               <span
-                onMouseMove={(e) => handleMouseMove(
+                onMouseEnter={(e) => showTooltipAtElement(
                   e,
                   '동적 퀀트 가이드 안내',
                   '국내 vs 미국 시장의 현재 밸류에이션 통계를 실시간으로 추적하여 과열/저평가 구간을 분석하고, 최적의 추천 필터 기준을 동적으로 갱신합니다.'
@@ -109,26 +114,32 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '10px',
-              transition: 'border-color 0.2s'
+              gap: '10px'
             }}
           >
-            <div
-              style={{ cursor: 'pointer', flex: 1 }}
-              onMouseMove={(e) => handleMouseMove(
-                e,
-                dynamicPresets.krxValue.name,
-                dynamicPresets.krxValue.reason,
-                `PER ≤ ${dynamicPresets.krxValue.targetPer}배 · PBR ≤ ${dynamicPresets.krxValue.targetPbr}배 · ROE ≥ ${dynamicPresets.krxValue.targetRoe}%`
-              )}
-              onMouseLeave={handleMouseLeave}
-            >
+            <div>
               <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
                 {dynamicPresets.krxValue.name}
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textDecoration: 'underline' }}>
-                상세 설명 (마우스 호버)
-              </div>
+              <span
+                onMouseEnter={(e) => showTooltipAtElement(
+                  e,
+                  dynamicPresets.krxValue.name,
+                  dynamicPresets.krxValue.reason,
+                  `PER ≤ ${dynamicPresets.krxValue.targetPer}배 · PBR ≤ ${dynamicPresets.krxValue.targetPbr}배 · ROE ≥ ${dynamicPresets.krxValue.targetRoe}%`
+                )}
+                onMouseLeave={handleMouseLeave}
+                style={{
+                  color: '#94a3b8',
+                  fontSize: '0.73rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  display: 'inline-block',
+                  marginTop: '2px'
+                }}
+              >
+                상세설명
+              </span>
             </div>
             <button
               onClick={() => onApplyDynamicFilters({
@@ -155,26 +166,32 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '10px',
-              transition: 'border-color 0.2s'
+              gap: '10px'
             }}
           >
-            <div
-              style={{ cursor: 'pointer', flex: 1 }}
-              onMouseMove={(e) => handleMouseMove(
-                e,
-                dynamicPresets.usValue.name,
-                dynamicPresets.usValue.reason,
-                `PER ≤ ${dynamicPresets.usValue.targetPer}배 · ROE ≥ ${dynamicPresets.usValue.targetRoe}%`
-              )}
-              onMouseLeave={handleMouseLeave}
-            >
+            <div>
               <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
                 {dynamicPresets.usValue.name}
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textDecoration: 'underline' }}>
-                상세 설명 (마우스 호버)
-              </div>
+              <span
+                onMouseEnter={(e) => showTooltipAtElement(
+                  e,
+                  dynamicPresets.usValue.name,
+                  dynamicPresets.usValue.reason,
+                  `PER ≤ ${dynamicPresets.usValue.targetPer}배 · ROE ≥ ${dynamicPresets.usValue.targetRoe}%`
+                )}
+                onMouseLeave={handleMouseLeave}
+                style={{
+                  color: '#94a3b8',
+                  fontSize: '0.73rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  display: 'inline-block',
+                  marginTop: '2px'
+                }}
+              >
+                상세설명
+              </span>
             </div>
             <button
               onClick={() => onApplyDynamicFilters({
@@ -200,26 +217,32 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '10px',
-              transition: 'border-color 0.2s'
+              gap: '10px'
             }}
           >
-            <div
-              style={{ cursor: 'pointer', flex: 1 }}
-              onMouseMove={(e) => handleMouseMove(
-                e,
-                dynamicPresets.dividendSafe.name,
-                dynamicPresets.dividendSafe.reason,
-                `배당률 ≥ ${dynamicPresets.dividendSafe.targetDividendYield}% · 부채비율 ≤ ${dynamicPresets.dividendSafe.maxDebtRatio}%`
-              )}
-              onMouseLeave={handleMouseLeave}
-            >
+            <div>
               <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
                 {dynamicPresets.dividendSafe.name}
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textDecoration: 'underline' }}>
-                상세 설명 (마우스 호버)
-              </div>
+              <span
+                onMouseEnter={(e) => showTooltipAtElement(
+                  e,
+                  dynamicPresets.dividendSafe.name,
+                  dynamicPresets.dividendSafe.reason,
+                  `배당률 ≥ ${dynamicPresets.dividendSafe.targetDividendYield}% · 부채비율 ≤ ${dynamicPresets.dividendSafe.maxDebtRatio}%`
+                )}
+                onMouseLeave={handleMouseLeave}
+                style={{
+                  color: '#94a3b8',
+                  fontSize: '0.73rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  display: 'inline-block',
+                  marginTop: '2px'
+                }}
+              >
+                상세설명
+              </span>
             </div>
             <button
               onClick={() => onApplyDynamicFilters({
@@ -237,7 +260,7 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
         </div>
       </div>
 
-      {/* Floating Near-Mouse Cursor Tooltip Pop-up */}
+      {/* Pop-up Tooltip Positioned Exactly to the Right of '상세설명' */}
       {hoverTooltip && (
         <div
           style={{
@@ -245,12 +268,12 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
             left: hoverTooltip.x,
             top: hoverTooltip.y,
             width: '310px',
-            background: 'rgba(15, 23, 42, 0.95)',
-            border: '1px solid rgba(99, 102, 241, 0.4)',
+            background: 'rgba(15, 23, 42, 0.96)',
+            border: '1px solid rgba(99, 102, 241, 0.45)',
             borderRadius: '8px',
             padding: '12px 14px',
-            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(10px)',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(12px)',
             pointerEvents: 'none',
             zIndex: 9999,
             display: 'flex',
