@@ -2,22 +2,21 @@ import React from 'react';
 import type { MarketIndex, SectorPerf, Stock } from '../../types/stock';
 import { IndexCard } from './IndexCard';
 import { SectorHeatmap } from './SectorHeatmap';
-import { Flame, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Flame, AlertTriangle } from 'lucide-react';
 
 interface MarketDashboardProps {
   indices: MarketIndex[];
   sectors: SectorPerf[];
   stocks: Stock[];
   onSelectStock: (symbol: string) => void;
-  onNavigateToScreenerWithPreset: (presetId: string) => void;
+  onNavigateToScreenerWithPreset?: (presetId: string) => void;
 }
 
 export const MarketDashboard: React.FC<MarketDashboardProps> = ({
   indices,
   sectors,
   stocks,
-  onSelectStock,
-  onNavigateToScreenerWithPreset
+  onSelectStock
 }) => {
   // 상위 상승 종목
   const topGainers = [...stocks].sort((a, b) => b.changeRate - a.changeRate).slice(0, 4);
@@ -25,35 +24,7 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
   const warningStocks = stocks.filter(s => s.warningBadges && s.warningBadges.length > 0);
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Top Banner */}
-      <div className="glass-card" style={{
-        padding: '24px 30px',
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.08) 100%)',
-        border: '1px solid rgba(99, 102, 241, 0.25)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div>
-          <h2 style={{ fontSize: '1.4rem', marginBottom: '6px' }}>📊 글로벌 증시 시황 & 퀀트 분석</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            국내/미국 무료 API 데이터를 기반으로 정규화된 지수, 섹터 히트맵 및 밸류에이션 스크리닝을 제공합니다.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={() => onNavigateToScreenerWithPreset('value-bluechip')}
-            className="btn btn-primary"
-          >
-            <ShieldCheck size={16} />
-            저평가 우량주 스크리닝
-          </button>
-        </div>
-      </div>
-
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Index Cards Grid */}
       <div style={{
         display: 'grid',
