@@ -141,6 +141,29 @@ export const App: React.FC = () => {
   useEffect(() => {
     setPresets(getSavedPresets());
     loadAllData();
+
+    // 1) 📅 재무제표 동기화: 사용자가 접속했을 때 하루 1회 자동 동기화
+    const lastDartDate = localStorage.getItem('last_dart_sync_date');
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    if (lastDartDate !== today) {
+      triggerDartCollection().then((res) => {
+        if (res.success) {
+          localStorage.setItem('last_dart_sync_date', today);
+          loadAllData();
+        }
+      }).catch((e) => console.warn('Daily DART sync error:', e));
+    }
+
+    // 2) ⏱️ 실시간 시세 동기화: 사용자가 접속해 있는 동안 1분(60초)마다 자동 갱신
+    const priceInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        triggerRealtimeCollection()
+          .then(() => loadAllData())
+          .catch((e) => console.warn('1-min price poll error:', e));
+      }
+    }, 60 * 1000); // 1분 주기
+
+    return () => clearInterval(priceInterval);
   }, [loadAllData]);
 
   const handleSelectStock = (symbol: string) => {
