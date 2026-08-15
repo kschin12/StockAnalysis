@@ -50,12 +50,12 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
                 <HelpCircle size={14} />
               </span>
 
-              {/* Guide Info Tooltip (Positioned directly to the right of header icon) */}
+              {/* Guide Info Tooltip */}
               {activeTooltip === 'guide' && (
                 <div
                   style={{
                     position: 'absolute',
-                    left: 'calc(100% + 12px)',
+                    left: 'calc(100% + 10px)',
                     top: '-10px',
                     width: '310px',
                     background: 'rgba(15, 23, 42, 0.98)',
@@ -98,23 +98,23 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
       {/* Dynamic Recommendation Cards Stack */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* 1. KRX Value Strategy Card */}
-        <div style={{ position: 'relative' }}>
-          <div
-            style={{
-              padding: '12px 14px',
-              background: 'var(--bg-input)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px'
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
-                {cleanName(dynamicPresets.krxValue.name)}
-              </div>
+        <div
+          style={{
+            padding: '12px 14px',
+            background: 'var(--bg-input)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
+              {cleanName(dynamicPresets.krxValue.name)}
+            </div>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
               <span
                 onMouseEnter={() => setActiveTooltip('krx')}
                 onMouseLeave={() => setActiveTooltip(null)}
@@ -129,75 +129,75 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
               >
                 상세설명
               </span>
-            </div>
-            <button
-              onClick={() => onApplyDynamicFilters({
-                market: 'KRX',
-                assetType: 'STOCK',
-                maxPer: dynamicPresets.krxValue.targetPer,
-                maxPbr: dynamicPresets.krxValue.targetPbr,
-                minRoe: dynamicPresets.krxValue.targetRoe
-              })}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
-            >
-              적용
-            </button>
-          </div>
 
-          {/* Tooltip positioned directly to the right of this exact card! */}
-          {activeTooltip === 'krx' && (
-            <div
-              style={{
-                position: 'absolute',
-                left: 'calc(100% + 12px)',
-                top: '0',
-                width: '320px',
-                background: 'rgba(15, 23, 42, 0.98)',
-                border: '1px solid rgba(99, 102, 241, 0.5)',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(12px)',
-                zIndex: 9999,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                animation: 'fadeIn 0.15s ease-out forwards',
-                pointerEvents: 'none'
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fff', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
-                {cleanName(dynamicPresets.krxValue.name)}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--color-brand)', fontWeight: 600 }}>
-                PER ≤ {dynamicPresets.krxValue.targetPer}배 · PBR ≤ {dynamicPresets.krxValue.targetPbr}배 · ROE ≥ {dynamicPresets.krxValue.targetRoe}%
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {dynamicPresets.krxValue.reason}
-              </div>
+              {/* Tooltip positioned directly next to the word '상세설명' */}
+              {activeTooltip === 'krx' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 'calc(100% + 8px)',
+                    top: '-20px',
+                    width: '320px',
+                    background: 'rgba(15, 23, 42, 0.98)',
+                    border: '1px solid rgba(99, 102, 241, 0.5)',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    animation: 'fadeIn 0.15s ease-out forwards',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fff', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
+                    {cleanName(dynamicPresets.krxValue.name)}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-brand)', fontWeight: 600 }}>
+                    PER ≤ {dynamicPresets.krxValue.targetPer}배 · PBR ≤ {dynamicPresets.krxValue.targetPbr}배 · ROE ≥ {dynamicPresets.krxValue.targetRoe}%
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {dynamicPresets.krxValue.reason}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+          <button
+            onClick={() => onApplyDynamicFilters({
+              market: 'KRX',
+              assetType: 'STOCK',
+              maxPer: dynamicPresets.krxValue.targetPer,
+              maxPbr: dynamicPresets.krxValue.targetPbr,
+              minRoe: dynamicPresets.krxValue.targetRoe
+            })}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
+          >
+            적용
+          </button>
         </div>
 
         {/* 2. US Growth Strategy Card */}
-        <div style={{ position: 'relative' }}>
-          <div
-            style={{
-              padding: '12px 14px',
-              background: 'var(--bg-input)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px'
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
-                {cleanName(dynamicPresets.usValue.name)}
-              </div>
+        <div
+          style={{
+            padding: '12px 14px',
+            background: 'var(--bg-input)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
+              {cleanName(dynamicPresets.usValue.name)}
+            </div>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
               <span
                 onMouseEnter={() => setActiveTooltip('us')}
                 onMouseLeave={() => setActiveTooltip(null)}
@@ -212,74 +212,74 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
               >
                 상세설명
               </span>
-            </div>
-            <button
-              onClick={() => onApplyDynamicFilters({
-                market: 'US',
-                assetType: 'STOCK',
-                maxPer: dynamicPresets.usValue.targetPer,
-                minRoe: dynamicPresets.usValue.targetRoe
-              })}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
-            >
-              적용
-            </button>
-          </div>
 
-          {/* Tooltip positioned directly to the right of this exact card! */}
-          {activeTooltip === 'us' && (
-            <div
-              style={{
-                position: 'absolute',
-                left: 'calc(100% + 12px)',
-                top: '0',
-                width: '320px',
-                background: 'rgba(15, 23, 42, 0.98)',
-                border: '1px solid rgba(99, 102, 241, 0.5)',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(12px)',
-                zIndex: 9999,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                animation: 'fadeIn 0.15s ease-out forwards',
-                pointerEvents: 'none'
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fff', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
-                {cleanName(dynamicPresets.usValue.name)}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--color-brand)', fontWeight: 600 }}>
-                PER ≤ {dynamicPresets.usValue.targetPer}배 · ROE ≥ {dynamicPresets.usValue.targetRoe}%
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {dynamicPresets.usValue.reason}
-              </div>
+              {/* Tooltip positioned directly next to the word '상세설명' */}
+              {activeTooltip === 'us' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 'calc(100% + 8px)',
+                    top: '-20px',
+                    width: '320px',
+                    background: 'rgba(15, 23, 42, 0.98)',
+                    border: '1px solid rgba(99, 102, 241, 0.5)',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    animation: 'fadeIn 0.15s ease-out forwards',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fff', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
+                    {cleanName(dynamicPresets.usValue.name)}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-brand)', fontWeight: 600 }}>
+                    PER ≤ {dynamicPresets.usValue.targetPer}배 · ROE ≥ {dynamicPresets.usValue.targetRoe}%
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {dynamicPresets.usValue.reason}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+          <button
+            onClick={() => onApplyDynamicFilters({
+              market: 'US',
+              assetType: 'STOCK',
+              maxPer: dynamicPresets.usValue.targetPer,
+              minRoe: dynamicPresets.usValue.targetRoe
+            })}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
+          >
+            적용
+          </button>
         </div>
 
         {/* 3. Dividend Strategy Card */}
-        <div style={{ position: 'relative' }}>
-          <div
-            style={{
-              padding: '12px 14px',
-              background: 'var(--bg-input)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px'
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
-                {cleanName(dynamicPresets.dividendSafe.name)}
-              </div>
+        <div
+          style={{
+            padding: '12px 14px',
+            background: 'var(--bg-input)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff' }}>
+              {cleanName(dynamicPresets.dividendSafe.name)}
+            </div>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
               <span
                 onMouseEnter={() => setActiveTooltip('dividend')}
                 onMouseLeave={() => setActiveTooltip(null)}
@@ -294,54 +294,54 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
               >
                 상세설명
               </span>
-            </div>
-            <button
-              onClick={() => onApplyDynamicFilters({
-                market: 'ALL',
-                assetType: 'STOCK',
-                minDividend: dynamicPresets.dividendSafe.targetDividendYield,
-                maxDebtRatio: dynamicPresets.dividendSafe.maxDebtRatio
-              })}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
-            >
-              적용
-            </button>
-          </div>
 
-          {/* Tooltip positioned directly to the right of this exact card! */}
-          {activeTooltip === 'dividend' && (
-            <div
-              style={{
-                position: 'absolute',
-                left: 'calc(100% + 12px)',
-                top: '0',
-                width: '320px',
-                background: 'rgba(15, 23, 42, 0.98)',
-                border: '1px solid rgba(99, 102, 241, 0.5)',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(12px)',
-                zIndex: 9999,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                animation: 'fadeIn 0.15s ease-out forwards',
-                pointerEvents: 'none'
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fff', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
-                {cleanName(dynamicPresets.dividendSafe.name)}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--color-brand)', fontWeight: 600 }}>
-                배당률 ≥ {dynamicPresets.dividendSafe.targetDividendYield}% · 부채비율 ≤ {dynamicPresets.dividendSafe.maxDebtRatio}%
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {dynamicPresets.dividendSafe.reason}
-              </div>
+              {/* Tooltip positioned directly next to the word '상세설명' */}
+              {activeTooltip === 'dividend' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 'calc(100% + 8px)',
+                    top: '-20px',
+                    width: '320px',
+                    background: 'rgba(15, 23, 42, 0.98)',
+                    border: '1px solid rgba(99, 102, 241, 0.5)',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    animation: 'fadeIn 0.15s ease-out forwards',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fff', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
+                    {cleanName(dynamicPresets.dividendSafe.name)}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-brand)', fontWeight: 600 }}>
+                    배당률 ≥ {dynamicPresets.dividendSafe.targetDividendYield}% · 부채비율 ≤ {dynamicPresets.dividendSafe.maxDebtRatio}%
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {dynamicPresets.dividendSafe.reason}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+          <button
+            onClick={() => onApplyDynamicFilters({
+              market: 'ALL',
+              assetType: 'STOCK',
+              minDividend: dynamicPresets.dividendSafe.targetDividendYield,
+              maxDebtRatio: dynamicPresets.dividendSafe.maxDebtRatio
+            })}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
+          >
+            적용
+          </button>
         </div>
       </div>
     </div>
