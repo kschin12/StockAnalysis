@@ -5,7 +5,7 @@ import { ScreenerView } from './components/Screener/ScreenerView';
 import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
-import { getSavedPresets, saveCustomPreset, deleteCustomPreset, getWatchlist, toggleWatchlist } from './utils/storage';
+import { getSavedPresets, saveCustomPreset, deleteCustomPreset } from './utils/storage';
 import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection } from './api/stockApi';
 import { RefreshCw, Zap } from 'lucide-react';
 
@@ -24,11 +24,48 @@ const INITIAL_FILTERS: FilterState = {
 };
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'screener' | 'chart' | 'news'>('dashboard');
-  const [selectedStockSymbol, setSelectedStockSymbol] = useState<string>('005930');
+  // 브라우저 뒤로가기/앞으로가기 (이전 페이지 / 다음 페이지) 연동
+  const parseHash = () => {
+    const hash = window.location.hash.replace('#', '');
+    if (!hash) return { tab: 'dashboard' as const, symbol: '005930' };
+    const [tabPart, queryPart] = hash.split('?');
+    const validTabs: Array<'dashboard' | 'screener' | 'chart' | 'news'> = ['dashboard', 'screener', 'chart', 'news'];
+    const tab = validTabs.includes(tabPart as any) ? (tabPart as 'dashboard' | 'screener' | 'chart' | 'news') : 'dashboard';
+    const params = new URLSearchParams(queryPart || '');
+    const symbol = params.get('symbol') || '005930';
+    return { tab, symbol };
+  };
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'screener' | 'chart' | 'news'>(() => parseHash().tab);
+  const [selectedStockSymbol, setSelectedStockSymbol] = useState<string>(() => parseHash().symbol);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [presets, setPresets] = useState<CustomPreset[]>([]);
   const [watchlist, setWatchlist] = useState<string[]>([]);
+  
+  // 탭 변경 시 브라우저 히스토리에 푸시 (이전/다음 페이지 활성화)
+  const handleTabChange = (tab: 'dashboard' | 'screener' | 'chart' | 'news') => {
+    setActiveTab(tab);
+    const newHash = tab === 'chart' ? `#chart?symbol=${selectedStockSymbol}` : `#${tab}`;
+    if (window.location.hash !== newHash) {
+      window.history.pushState(null, '', newHash);
+    }
+  };
+
+  // 브라우저 뒤로가기 / 앞으로가기 이벤트 감지
+  useEffect(() => {
+    const handlePopState = () => {
+      const { tab, symbol } = parseHash();
+      setActiveTab(tab);
+      if (symbol) setSelectedStockSymbol(symbol);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
   
   // Real DB data states
   const [indices, setIndices] = useState<MarketIndex[]>([]);
@@ -46,18 +83,21 @@ export const App: React.FC = () => {
   const loadAllData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [idxData, secData, stkData, newsData, metricsData] = await Promise.all([
+      const { fetchWatchlist } = await import('./api/stockApi');
+      const [idxData, secData, stkData, newsData, metricsData, wlData] = await Promise.all([
         fetchMarketIndices(),
         fetchSectors(),
         fetchStocks(),
         fetchNews(),
-        fetchQuantMetrics()
+        fetchQuantMetrics(),
+        fetchWatchlist()
       ]);
       setIndices(idxData);
       setSectors(secData);
       setStocks(stkData);
       setNews(newsData);
       setQuantMetrics(metricsData);
+      setWatchlist(wlData.map(w => w.symbol));
       setLastSyncTime(new Date().toLocaleTimeString());
     } catch (e) {
       console.error('데이터 로드 실패:', e);
@@ -100,13 +140,16 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     setPresets(getSavedPresets());
-    setWatchlist(getWatchlist());
     loadAllData();
   }, [loadAllData]);
 
   const handleSelectStock = (symbol: string) => {
     setSelectedStockSymbol(symbol);
     setActiveTab('chart');
+    const newHash = `#chart?symbol=${symbol}`;
+    if (window.location.hash !== newHash) {
+      window.history.pushState(null, '', newHash);
+    }
   };
 
   const handleApplyPreset = (preset: CustomPreset) => {
@@ -133,9 +176,18 @@ export const App: React.FC = () => {
     setFilters(INITIAL_FILTERS);
   };
 
-  const handleToggleWatchlist = (symbol: string) => {
-    const updated = toggleWatchlist(symbol);
-    setWatchlist(updated);
+  const handleToggleWatchlist = async (symbol: string) => {
+    const isWatch = watchlist.includes(symbol);
+    if (isWatch) {
+      const { removeFromWatchlist } = await import('./api/stockApi');
+      await removeFromWatchlist(symbol);
+      setWatchlist(prev => prev.filter(s => s !== symbol));
+    } else {
+      const { addToWatchlist } = await import('./api/stockApi');
+      const st = stocks.find(s => s.symbol === symbol);
+      await addToWatchlist(symbol, st?.name || '');
+      setWatchlist(prev => [...prev, symbol]);
+    }
   };
 
   const handleNavigateToScreenerWithPreset = (presetId: string) => {
@@ -143,7 +195,7 @@ export const App: React.FC = () => {
     if (target) {
       setFilters(target.filters);
     }
-    setActiveTab('screener');
+    handleTabChange('screener');
   };
 
   const selectedStock = stocks.find(s => s.symbol === selectedStockSymbol) || stocks[0] || {
@@ -168,7 +220,7 @@ export const App: React.FC = () => {
       {/* Top Sticky Nav */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         selectedStockSymbol={selectedStock.symbol}
       />
 

@@ -175,3 +175,68 @@ export async function fetchQuantMetrics(): Promise<QuantMetrics | null> {
     return calculateClientQuantMetrics(MOCK_STOCKS);
   }
 }
+
+export async function fetchRankings(category: string, market: string = 'ALL'): Promise<{ success: boolean, category: string, market?: string, data: Stock[] }> {
+  try {
+    const res = await fetch(`/api/rankings/${category}?market=${encodeURIComponent(market)}`);
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    return { success: false, category, market, data: [] };
+  }
+}
+
+export async function fetchWatchlist(): Promise<Stock[]> {
+  try {
+    const res = await fetch('/api/watchlist');
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function addToWatchlist(symbol: string, name: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/watchlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, name })
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function removeFromWatchlist(symbol: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/watchlist/${symbol}`, { method: 'DELETE' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export interface RealCandleItem {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export async function fetchStockCandles(symbol: string, days: number = 90): Promise<RealCandleItem[]> {
+  try {
+    const res = await fetch(`/api/stocks/${encodeURIComponent(symbol)}/candles?days=${days}`);
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+    return [];
+  } catch (err) {
+    return [];
+  }
+}

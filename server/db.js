@@ -102,6 +102,15 @@ function initTablesAndSeed() {
       )
     `);
 
+    // 5. Watchlist
+    db.run(`
+      CREATE TABLE IF NOT EXISTS watchlist (
+        symbol TEXT PRIMARY KEY,
+        name TEXT,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // 데이터 존재 여부 확인 후 초기 시드 삽입
     db.get('SELECT COUNT(*) as count FROM stocks', (err, row) => {
       if (!err && row.count === 0) {
@@ -2310,11 +2319,67 @@ function getNews() {
   });
 }
 
+function getWatchlist() {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT 
+        w.symbol,
+        COALESCE(s.name, w.name, w.symbol) as name,
+        COALESCE(s.market, IIF(LENGTH(w.symbol) = 6 AND w.symbol GLOB '[0-9]*', 'KRX', 'US')) as market,
+        COALESCE(s.assetType, 'STOCK') as assetType,
+        COALESCE(s.sector, '일반') as sector,
+        COALESCE(s.price, 0) as price,
+        COALESCE(s.changeRate, 0) as changeRate,
+        COALESCE(s.volume, 0) as volume,
+        COALESCE(s.marketCap, 0) as marketCap,
+        s.per,
+        s.pbr,
+        s.psr,
+        s.roe,
+        s.dividendYield,
+        s.debtRatio,
+        s.high52w,
+        s.low52w,
+        COALESCE(s.currency, IIF(LENGTH(w.symbol) = 6 AND w.symbol GLOB '[0-9]*', 'KRW', 'USD')) as currency,
+        1 as isWatchlist,
+        w.added_at
+      FROM watchlist w
+      LEFT JOIN stocks s ON w.symbol = s.symbol
+      ORDER BY w.added_at DESC
+    `;
+    db.all(query, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+}
+
+function addWatchlist(symbol, name) {
+  return new Promise((resolve, reject) => {
+    db.run('INSERT OR IGNORE INTO watchlist (symbol, name) VALUES (?, ?)', [symbol, name], function (err) {
+      if (err) return reject(err);
+      resolve(this.changes);
+    });
+  });
+}
+
+function removeWatchlist(symbol) {
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM watchlist WHERE symbol = ?', [symbol], function (err) {
+      if (err) return reject(err);
+      resolve(this.changes);
+    });
+  });
+}
+
 module.exports = {
   db,
   getIndices,
   getSectors,
   getStocks,
   getStock,
-  getNews
+  getNews,
+  getWatchlist,
+  addWatchlist,
+  removeWatchlist
 };

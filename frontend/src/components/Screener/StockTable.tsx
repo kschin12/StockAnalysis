@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Stock } from '../../types/stock';
-import { Download, Star, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Download, Star, ArrowUpDown, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { exportStocksToCsv } from '../../utils/exportCsv';
 
 interface StockTableProps {
@@ -20,6 +20,13 @@ export const StockTable: React.FC<StockTableProps> = ({
 }) => {
   const [sortField, setSortField] = useState<SortField>('marketCap');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
+
+  // 종목 리스트나 필터 변경 시 1페이지로 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [stocks.length]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -39,6 +46,12 @@ export const StockTable: React.FC<StockTableProps> = ({
     return sortAsc ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
   });
 
+  const totalPages = Math.max(1, Math.ceil(sortedStocks.length / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, sortedStocks.length);
+  const paginatedStocks = sortedStocks.slice(startIndex, endIndex);
+
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return <ArrowUpDown size={12} color="var(--text-muted)" />;
     return sortAsc ? <ChevronUp size={14} color="var(--color-brand)" /> : <ChevronDown size={14} color="var(--color-brand)" />;
@@ -48,20 +61,52 @@ export const StockTable: React.FC<StockTableProps> = ({
     <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Table Action Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontSize: '1rem', fontWeight: 700 }}>
             검색 결과: <span style={{ color: 'var(--color-brand)' }}>{stocks.length}</span>개 종목
           </span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            ({startIndex + 1} - {endIndex} 표시 중)
+          </span>
         </div>
 
-        <button
-          onClick={() => exportStocksToCsv(sortedStocks)}
-          className="btn btn-secondary"
-          style={{ fontSize: '0.82rem' }}
-        >
-          <Download size={14} />
-          CSV(엑셀) 다운로드
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Page size select */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <span>보기:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              style={{
+                background: 'rgba(30, 41, 59, 0.8)',
+                border: '1px solid var(--border-subtle)',
+                color: '#fff',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '0.8rem',
+                cursor: 'pointer'
+              }}
+            >
+              <option value={15}>15개씩</option>
+              <option value={20}>20개씩</option>
+              <option value={30}>30개씩</option>
+              <option value={50}>50개씩</option>
+              <option value={100}>100개씩</option>
+            </select>
+          </div>
+
+          <button
+            onClick={() => exportStocksToCsv(sortedStocks)}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.82rem' }}
+          >
+            <Download size={14} />
+            CSV(엑셀) 다운로드
+          </button>
+        </div>
       </div>
 
       {/* Table Container */}
@@ -115,8 +160,8 @@ export const StockTable: React.FC<StockTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {sortedStocks.length > 0 ? (
-              sortedStocks.map((stk) => {
+            {paginatedStocks.length > 0 ? (
+              paginatedStocks.map((stk) => {
                 const isWatch = watchlist.includes(stk.symbol);
                 const isUp = stk.changeRate >= 0;
 
@@ -228,6 +273,89 @@ export const StockTable: React.FC<StockTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          paddingTop: '12px',
+          borderTop: '1px solid var(--border-subtle)'
+        }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            총 <strong style={{ color: '#fff' }}>{totalPages}</strong> 페이지 중 <strong style={{ color: 'var(--color-brand)' }}>{validCurrentPage}</strong> 페이지
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Previous Page Button */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={validCurrentPage <= 1}
+              className="btn btn-secondary"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                opacity: validCurrentPage <= 1 ? 0.4 : 1,
+                cursor: validCurrentPage <= 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronLeft size={14} />
+              이전 페이지
+            </button>
+
+            {/* Page Number Buttons */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - validCurrentPage) <= 2)
+              .map((pageNum, idx, arr) => {
+                const prevNum = arr[idx - 1];
+                const showEllipsis = prevNum && pageNum - prevNum > 1;
+
+                return (
+                  <React.Fragment key={pageNum}>
+                    {showEllipsis && <span style={{ color: 'var(--text-muted)', padding: '0 4px' }}>...</span>}
+                    <button
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`btn ${validCurrentPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{
+                        padding: '6px 10px',
+                        fontSize: '0.8rem',
+                        minWidth: '32px',
+                        fontWeight: validCurrentPage === pageNum ? 700 : 400
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+
+            {/* Next Page Button */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={validCurrentPage >= totalPages}
+              className="btn btn-secondary"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                opacity: validCurrentPage >= totalPages ? 0.4 : 1,
+                cursor: validCurrentPage >= totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              다음 페이지
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

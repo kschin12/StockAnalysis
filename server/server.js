@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { getIndices, getSectors, getStocks, getStock, getNews } = require('./db');
-const { runRealtimeCollection } = require('./collector');
+const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addWatchlist, removeWatchlist } = require('./db');
+const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
 const { runDartFinancialSync } = require('./dartCollector');
 
@@ -76,7 +76,12 @@ app.get('/api/stocks', async (req, res) => {
 app.get('/api/stocks/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
-    const stock = await getStock(symbol);
+    let stock = await getStock(symbol);
+    if (!stock) {
+      // 자동 실시간 수집 시도
+      await syncSingleStock(symbol);
+      stock = await getStock(symbol);
+    }
     if (!stock) {
       return res.status(404).json({ error: 'Stock not found' });
     }
@@ -84,6 +89,19 @@ app.get('/api/stocks/:symbol', async (req, res) => {
   } catch (err) {
     console.error('Error fetching stock detail:', err);
     res.status(500).json({ error: 'Failed to fetch stock detail' });
+  }
+});
+
+// 5-1. Real Daily Candles (실제 일봉 OHLCV 차트 데이터)
+app.get('/api/stocks/:symbol/candles', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const days = parseInt(req.query.days, 10) || 90;
+    const candles = await fetchStockCandles(symbol, days);
+    res.json(candles);
+  } catch (err) {
+    console.error('Error fetching stock candles:', err);
+    res.status(500).json({ error: 'Failed to fetch candles' });
   }
 });
 
@@ -128,6 +146,59 @@ app.get('/api/quant/metrics', async (req, res) => {
   } catch (err) {
     console.error('Quant metrics error:', err);
     res.status(500).json({ error: 'Failed to evaluate quant metrics' });
+  }
+});
+
+// 10. 동적 종목 디스커버리 랭킹 (한국 + 미국 지원)
+app.get('/api/rankings/:category', async (req, res) => {
+  try {
+    const { category } = req.params;
+    const { market } = req.query; // 'ALL', 'KRX', 'US'
+    const result = await runDynamicCollection(category, market || 'ALL');
+    res.json(result);
+  } catch (err) {
+    console.error('Rankings error:', err);
+    res.status(500).json({ error: 'Failed to fetch rankings' });
+  }
+});
+
+// 11. Watchlist (관심종목) API
+app.get('/api/watchlist', async (req, res) => {
+  try {
+    const list = await getWatchlist();
+    res.json(list);
+  } catch (err) {
+    console.error('Watchlist fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch watchlist' });
+  }
+});
+
+app.post('/api/watchlist', async (req, res) => {
+  try {
+    const { symbol, name } = req.body;
+    if (!symbol) return res.status(400).json({ error: 'Symbol is required' });
+    const cleanSym = symbol.trim().toUpperCase();
+    
+    // 한국/미국 주식 실시간 시세 및 기본정보 동기화
+    await syncSingleStock(cleanSym, name || '');
+    await addWatchlist(cleanSym, name || cleanSym);
+    
+    res.json({ success: true, symbol: cleanSym });
+  } catch (err) {
+    console.error('Watchlist add error:', err);
+    res.status(500).json({ error: 'Failed to add to watchlist' });
+  }
+});
+
+app.delete('/api/watchlist/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const cleanSym = symbol.trim().toUpperCase();
+    await removeWatchlist(cleanSym);
+    res.json({ success: true, symbol: cleanSym });
+  } catch (err) {
+    console.error('Watchlist remove error:', err);
+    res.status(500).json({ error: 'Failed to remove from watchlist' });
   }
 });
 

@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts';
 import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightweight-charts';
 import type { Stock, NewsItem } from '../../types/stock';
+import { fetchStockCandles } from '../../api/stockApi';
 import { generateMockCandles } from '../../mock/stockData';
-import { TrendingUp, TrendingDown, ShieldAlert, Newspaper } from 'lucide-react';
+import { TrendingUp, TrendingDown, ShieldAlert, Newspaper, Loader2 } from 'lucide-react';
 
 interface StockChartProps {
   stock: Stock;
@@ -16,12 +17,15 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<IChartApi | null>(null);
   const [periodDays, setPeriodDays] = useState<number>(90);
+  const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
 
   const relatedNews = news.filter(n => n.symbol === stock.symbol);
   const isUp = stock.changeRate >= 0;
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    let isMounted = true;
 
     // 차트 초기화
     const chart = createChart(chartContainerRef.current, {
@@ -78,38 +82,54 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
       title: 'MA20'
     });
 
-    // 데이터 세팅
-    const candles = generateMockCandles(stock.price, periodDays);
+    // 실제 데이터 비동기 로딩
+    async function loadCandles() {
+      setIsLoadingCandles(true);
+      try {
+        const realCandles = await fetchStockCandles(stock.symbol, periodDays);
+        const candles = (realCandles && realCandles.length > 0)
+          ? realCandles
+          : generateMockCandles(stock.price, periodDays);
 
-    const candleData: CandlestickData[] = candles.map((c: any) => ({
-      time: c.time as any,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close
-    }));
+        if (!isMounted) return;
 
-    const volumeData: HistogramData[] = candles.map((c: any) => ({
-      time: c.time as any,
-      value: c.volume || 1000000,
-      color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(244, 63, 94, 0.35)'
-    }));
+        const candleData: CandlestickData[] = candles.map((c: any) => ({
+          time: c.time as any,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close
+        }));
 
-    // 20일 이동평균선 계산
-    const ma20Data: LineData[] = [];
-    for (let i = 0; i < candles.length; i++) {
-      if (i >= 19) {
-        const slice = candles.slice(i - 19, i + 1);
-        const avg = slice.reduce((sum: number, item: any) => sum + item.close, 0) / 20;
-        ma20Data.push({ time: candles[i].time as any, value: avg });
+        const volumeData: HistogramData[] = candles.map((c: any) => ({
+          time: c.time as any,
+          value: c.volume || 1000000,
+          color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(244, 63, 94, 0.35)'
+        }));
+
+        // 20일 이동평균선 계산
+        const ma20Data: LineData[] = [];
+        for (let i = 0; i < candles.length; i++) {
+          if (i >= 19) {
+            const slice = candles.slice(i - 19, i + 1);
+            const avg = slice.reduce((sum: number, item: any) => sum + item.close, 0) / 20;
+            ma20Data.push({ time: candles[i].time as any, value: Math.round(avg * 100) / 100 });
+          }
+        }
+
+        candleSeries.setData(candleData);
+        volumeSeries.setData(volumeData);
+        ma20Series.setData(ma20Data);
+
+        chart.timeScale().fitContent();
+      } catch (err) {
+        console.error('Candle load error:', err);
+      } finally {
+        if (isMounted) setIsLoadingCandles(false);
       }
     }
 
-    candleSeries.setData(candleData);
-    volumeSeries.setData(volumeData);
-    ma20Series.setData(ma20Data);
-
-    chart.timeScale().fitContent();
+    loadCandles();
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -120,10 +140,11 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
     window.addEventListener('resize', handleResize);
 
     return () => {
+      isMounted = false;
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [stock.symbol, periodDays, stock.price]);
+  }, [stock.symbol, periodDays]);
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -174,9 +195,16 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
       <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>TradingView 인터랙티브 차트</span>
-            <span style={{ fontSize: '0.75rem', color: '#f59e0b' }}>● 20일 이동평균선(MA20)</span>
-            <span style={{ fontSize: '0.75rem', color: '#10b981' }}>■ 거래량(Volume)</span>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>실시간 인터랙티브 캔들 차트</span>
+            {isLoadingCandles ? (
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-brand)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Loader2 size={12} className="animate-spin" /> 실시간 캔들 로딩 중...
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.75rem', color: '#10b981' }}>● 실시간 일봉 연동 완료</span>
+            )}
+            <span style={{ fontSize: '0.75rem', color: '#f59e0b' }}>● 20일선(MA20)</span>
+            <span style={{ fontSize: '0.75rem', color: '#6366f1' }}>■ 거래량(Volume)</span>
           </div>
 
           <div style={{ display: 'flex', gap: '6px' }}>
@@ -232,16 +260,24 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
             </div>
 
             <div style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>부채비율</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, marginTop: '4px' }}>
-                {stock.debtRatio ? `${stock.debtRatio}%` : 'N/A'}
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>52주 최고 / 최저</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, marginTop: '6px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ color: 'var(--color-up)' }}>
+                  {stock.high52w ? (stock.currency === 'KRW' ? `₩${stock.high52w.toLocaleString()}` : `$${stock.high52w}`) : '-'}
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>/</span>
+                <span style={{ color: 'var(--color-down)' }}>
+                  {stock.low52w ? (stock.currency === 'KRW' ? `₩${stock.low52w.toLocaleString()}` : `$${stock.low52w}`) : '-'}
+                </span>
               </div>
             </div>
 
             <div style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>RSI (14)</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, marginTop: '4px' }}>
-                {stock.rsi14 ? stock.rsi14 : 'N/A'}
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>시가총액</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: '4px' }}>
+                {stock.currency === 'KRW' 
+                  ? `${(stock.marketCap / 10000).toFixed(1)}조원`
+                  : `$${(stock.marketCap / 1000).toFixed(1)}B`}
               </div>
             </div>
           </div>
