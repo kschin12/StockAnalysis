@@ -49,11 +49,64 @@ function cleanHtmlText(text, fallbackTitle = '') {
   return clean;
 }
 
-// 실제 기사/공시 본문에서 핵심 2문장을 추출하여 정밀 요약
+// DART 공시 본문에서 "주요내용", "주요사항", "결정사항", "변동원인" 영역을 정밀 추출
+function extractDartKeyContents(title, rawBody, companyName) {
+  const comp = companyName || '해당 기업';
+  if (!rawBody || rawBody.length < 10) return '';
+
+  // 1. 실적 공시 규칙: 특별한 사항(흑자전환, 적자전환, 사상 최대, 어닝서프라이즈, 손익구조 30%이상 변동 등)이 없으면 요약 생략
+  const isEarnings = title.includes('영업(잠정)실적') || title.includes('영업실적') || title.includes('재무제표') || title.includes('분기보고서') || title.includes('사업보고서');
+  const hasSpecialEvent = rawBody.includes('흑자전환') || rawBody.includes('적자전환') || rawBody.includes('사상 최대') || rawBody.includes('어닝서프라이즈') || rawBody.includes('어닝쇼크') || rawBody.includes('30%') || title.includes('손익구조');
+
+  if (isEarnings && !hasSpecialEvent) {
+    return ''; // 특별한 사항이 없는 일반 실적은 요약 생략
+  }
+
+  // 2. DART 본문에서 "주요내용", "내용", "주요사항", "결정사항", "변동원인" 영역 추출
+  let extracted = '';
+  const contentMatch = rawBody.match(/(?:2\.\s*(?:주요)?내용|주요내용|주요사항|결정사항|변동원인)([\s\S]*?)(?:3\.|4\.|5\.|근거규정|※|기타\s*투자판단|$)/i);
+  if (contentMatch && contentMatch[1].trim().length >= 10) {
+    extracted = contentMatch[1].trim();
+  } else {
+    const fallbackMatch = rawBody.match(/(?:1\.\s*제목[\s\S]*?)(?:2\.[\s\S]*?)(?:3\.|4\.|5\.|근거규정|$)/i);
+    if (fallbackMatch) {
+      extracted = fallbackMatch[0].trim();
+    } else {
+      extracted = rawBody;
+    }
+  }
+
+  // 불필요한 번호, 규정 문구, 하이픈 정리
+  let cleaned = extracted
+    .replace(/^2\.\s*(?:주요)?내용\s*/i, '')
+    .replace(/근거규정[\s\S]*$/gi, '')
+    .replace(/기타\s*-\s*$/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleaned.length > 180) {
+    cleaned = cleaned.substring(0, 175) + '...';
+  }
+
+  return cleaned;
+}
+
+// 실제 기사/공시 본문에서 핵심 문장을 추출하여 정밀 요약
 function summarizeRealContent(title, realBody, companyName, isDisclosure) {
   const comp = companyName || '해당 종목';
   if (!realBody || realBody.length < 15) {
-    return `${comp} 관련 주요 속보입니다. 상세 내용은 출처 원문 기사를 확인하시기 바랍니다.`;
+    return '';
+  }
+
+  if (isDisclosure) {
+    return extractDartKeyContents(title, realBody, comp);
+  }
+
+  // 일반 뉴스 기사 중 실적 관련: 특별한 사항(흑자전환, 사상 최대, 어닝서프라이즈 등)이 없으면 요약 생략
+  const isEarningsNews = title.includes('실적') || title.includes('영업익') || title.includes('매출');
+  const hasSpecialNews = title.includes('흑자전환') || title.includes('적자전환') || title.includes('사상 최대') || title.includes('서프라이즈') || title.includes('쇼크') || title.includes('급증');
+  if (isEarningsNews && !hasSpecialNews) {
+    return '';
   }
 
   // 불필요한 기자명, 저작권, 네비게이션 텍스트 제거

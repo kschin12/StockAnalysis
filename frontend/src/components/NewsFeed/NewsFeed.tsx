@@ -381,10 +381,10 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                     </a>
                   </h4>
 
-                  {/* 기사 / 공시 요약 */}
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {(() => {
-                      const clean = item.summary
+                  {/* 기사 / 공시 요약 (특이사항 없는 실적 등은 요약 생략) */}
+                  {item.summary && item.summary.trim() !== '' && (
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '6px' }}>
+                      {item.summary
                         .replace(/&lt;/g, '<')
                         .replace(/&gt;/g, '>')
                         .replace(/&amp;/g, '&')
@@ -392,13 +392,9 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                         .replace(/&#39;/g, "'")
                         .replace(/&nbsp;/g, ' ')
                         .replace(/<[^>]*>?/gm, '')
-                        .trim();
-                      if (!clean || clean.length <= 15 || clean === item.title) {
-                        return `${item.companyName || '해당 종목'} 관련 실시간 주요 속보입니다. 상세 내용은 출처 원문 기사를 확인하세요.`;
-                      }
-                      return clean;
-                    })()}
-                  </p>
+                        .trim()}
+                    </p>
+                  )}
                 </div>
 
                 {/* Card Bottom: 시그널 & 출처 텍스트 링크 (원문 링크 자리에 출처 대체, 테두리/배경 없음) */}

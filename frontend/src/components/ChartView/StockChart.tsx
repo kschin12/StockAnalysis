@@ -415,9 +415,11 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                       {n.title}
                     </a>
                   </h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    {n.summary}
-                  </p>
+                  {n.summary && n.summary.trim() !== '' && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                      {n.summary}
+                    </p>
+                  )}
                 </div>
               ))
             ) : (
