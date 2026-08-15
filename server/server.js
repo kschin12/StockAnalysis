@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addWatchlist, removeWatchlist } = require('./db');
+const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addWatchlist, removeWatchlist, computeStockWarningBadges, computeStockMomentumBadges } = require('./db');
 const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
 const { runDartFinancialSync } = require('./dartCollector');
@@ -170,12 +170,17 @@ app.get('/api/rankings/:category', async (req, res) => {
 
     db.all(query, [category, targetMarket], (err, rows) => {
       if (!err && rows && rows.length > 0) {
+        const enriched = rows.map(r => ({
+          ...r,
+          warningBadges: computeStockWarningBadges(r),
+          momentumBadges: computeStockMomentumBadges(r)
+        }));
         return res.json({
           success: true,
           category,
           market: targetMarket,
-          count: rows.length,
-          data: rows,
+          count: enriched.length,
+          data: enriched,
           timestamp: new Date().toISOString()
         });
       }
@@ -194,12 +199,17 @@ app.get('/api/rankings/:category', async (req, res) => {
 
       const fallbackQuery = `SELECT * FROM stocks s WHERE ${whereConditions.join(' AND ')} ORDER BY ${orderBy} LIMIT 60`;
       db.all(fallbackQuery, [], (err2, fallbackRows) => {
+        const enrichedFallback = (fallbackRows || []).map(r => ({
+          ...r,
+          warningBadges: computeStockWarningBadges(r),
+          momentumBadges: computeStockMomentumBadges(r)
+        }));
         res.json({
           success: true,
           category,
           market: targetMarket,
-          count: (fallbackRows || []).length,
-          data: fallbackRows || [],
+          count: enrichedFallback.length,
+          data: enrichedFallback,
           timestamp: new Date().toISOString()
         });
       });

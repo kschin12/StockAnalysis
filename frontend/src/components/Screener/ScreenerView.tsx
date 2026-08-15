@@ -61,13 +61,30 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
       if (activeCategory === 'all') return;
       setIsLoadingDynamic(true);
       try {
+        const stocksMap = new Map(stocks.map(s => [s.symbol, s]));
         if (activeCategory === 'watchlist') {
           const data = await fetchWatchlist();
-          setDynamicStocks(data);
+          const enriched = (data || []).map((item: Stock) => {
+            const full = stocksMap.get(item.symbol);
+            return {
+              ...item,
+              warningBadges: item.warningBadges?.length ? item.warningBadges : full?.warningBadges || [],
+              momentumBadges: item.momentumBadges?.length ? item.momentumBadges : full?.momentumBadges || []
+            };
+          });
+          setDynamicStocks(enriched);
         } else {
           const res = await fetchRankings(activeCategory, filters.market || 'ALL');
           if (res.success && res.data) {
-            setDynamicStocks(res.data);
+            const enriched = res.data.map((item: Stock) => {
+              const full = stocksMap.get(item.symbol);
+              return {
+                ...item,
+                warningBadges: item.warningBadges?.length ? item.warningBadges : full?.warningBadges || [],
+                momentumBadges: item.momentumBadges?.length ? item.momentumBadges : full?.momentumBadges || []
+              };
+            });
+            setDynamicStocks(enriched);
           } else {
             setDynamicStocks([]);
           }
@@ -79,7 +96,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
       }
     }
     loadDynamic();
-  }, [activeCategory, filters.market]);
+  }, [activeCategory, filters.market, stocks]);
 
   // 필터 적용 로직 (카테고리 선택 시 0초 즉시 정렬 표시)
   const getCategoryBaseStocks = () => {

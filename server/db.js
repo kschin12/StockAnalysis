@@ -2467,5 +2467,7 @@ module.exports = {
   getNews,
   getWatchlist,
   addWatchlist,
-  removeWatchlist
+  removeWatchlist,
+  computeStockWarningBadges,
+  computeStockMomentumBadges
 };
