@@ -6,7 +6,7 @@ const WATCHLIST_STORAGE_KEY = 'QUANT_SCREENER_WATCHLIST';
 export const DEFAULT_PRESETS: CustomPreset[] = [
   {
     id: 'value-bluechip',
-    name: '💎 저평가 우량주',
+    name: '저평가 우량주',
     description: 'PER 10배 이하 + PBR 1배 이하 + ROE 10% 이상',
     filters: {
       market: 'ALL',
@@ -24,7 +24,7 @@ export const DEFAULT_PRESETS: CustomPreset[] = [
   },
   {
     id: 'dividend-safe',
-    name: '🛡️ 배당 안정주',
+    name: '배당 안정주',
     description: '배당수익률 3% 이상 + 부채비율 100% 이하',
     filters: {
       market: 'ALL',
@@ -42,7 +42,7 @@ export const DEFAULT_PRESETS: CustomPreset[] = [
   },
   {
     id: 'top-etfs',
-    name: '📊 대표 ETF 모음',
+    name: '대표 ETF 모음',
     description: '시장 지수 및 배당 우량 ETF만 필터링',
     filters: {
       market: 'ALL',
@@ -63,9 +63,12 @@ export const DEFAULT_PRESETS: CustomPreset[] = [
 export function getSavedPresets(): CustomPreset[] {
   try {
     const raw = localStorage.getItem(PRESET_STORAGE_KEY);
-    if (!raw) return DEFAULT_PRESETS;
-    const custom = JSON.parse(raw);
-    return [...DEFAULT_PRESETS, ...custom];
+    const custom: CustomPreset[] = raw ? JSON.parse(raw) : [];
+    const all = [...DEFAULT_PRESETS, ...custom];
+    return all.map(p => ({
+      ...p,
+      name: p.name.replace(/^[^\w\s가-힣]+/, '').trim()
+    }));
   } catch {
     return DEFAULT_PRESETS;
   }
