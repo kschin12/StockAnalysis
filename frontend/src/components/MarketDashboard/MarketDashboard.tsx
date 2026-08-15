@@ -88,9 +88,9 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {stk.name} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({stk.symbol})</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
                       {stk.momentumBadges?.map((b, i) => (
-                        <span key={i} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', whiteSpace: 'nowrap' }}>
+                        <span key={i} style={{ fontSize: '0.68rem', color: '#818cf8', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {b}
                         </span>
                       ))}
@@ -151,9 +151,9 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {stk.name} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({stk.symbol})</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
                       {stk.warningBadges?.map((b, i) => (
-                        <span key={i} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', whiteSpace: 'nowrap' }}>
+                        <span key={i} style={{ fontSize: '0.68rem', color: '#f87171', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {b}
                         </span>
                       ))}

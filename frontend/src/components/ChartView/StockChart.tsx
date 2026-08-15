@@ -288,9 +288,9 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
                 <ShieldAlert size={16} /> 가치함정 및 리스크 감지
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {stock.warningBadges.map((b, i) => (
-                  <span key={i} style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                  <span key={i} style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f87171' }}>
                     {b}
                   </span>
                 ))}

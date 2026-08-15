@@ -429,12 +429,8 @@ export const StockTable: React.FC<StockTableProps> = ({
                             onMouseEnter={(e) => handleBadgeMouseEnter(e, b, 'risk')}
                             onMouseLeave={handleBadgeMouseLeave}
                             style={{
-                              fontSize: '0.68rem',
-                              padding: '2px 6px',
-                              background: 'rgba(239, 68, 68, 0.15)',
+                              fontSize: '0.72rem',
                               color: '#f87171',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
-                              borderRadius: '4px',
                               fontWeight: 600,
                               cursor: 'help'
                             }}
@@ -449,12 +445,8 @@ export const StockTable: React.FC<StockTableProps> = ({
                             onMouseEnter={(e) => handleBadgeMouseEnter(e, m, 'momentum')}
                             onMouseLeave={handleBadgeMouseLeave}
                             style={{
-                              fontSize: '0.68rem',
-                              padding: '2px 6px',
-                              background: 'rgba(99, 102, 241, 0.15)',
-                              color: '#a5b4fc',
-                              border: '1px solid rgba(99, 102, 241, 0.3)',
-                              borderRadius: '4px',
+                              fontSize: '0.72rem',
+                              color: '#818cf8',
                               fontWeight: 600,
                               cursor: 'help'
                             }}
