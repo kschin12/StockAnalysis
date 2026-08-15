@@ -264,12 +264,13 @@ app.listen(PORT, () => {
   console.log(`🚀 AlphaQuant REST API Server listening on port ${PORT}`);
   console.log(`👉 Web App & API: http://localhost:${PORT}`);
 
-  // 서버 시작 3초 후 초기 랭킹 수집 1회 실행 & 이후 60초마다 정기 자동 수집
+  // 서버 시작 3초 후 초기 랭킹 수집 1회 실행 & 이후 5분(300초)마다 정기 자동 수집
   setTimeout(() => {
     refreshAllRankingsAndSave().catch(e => console.warn('Initial cron error:', e.message));
   }, 3000);
 
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5분
   setInterval(() => {
     refreshAllRankingsAndSave().catch(e => console.warn('Interval cron error:', e.message));
-  }, 60000);
+  }, REFRESH_INTERVAL_MS);
 });
