@@ -24,6 +24,7 @@ export interface Stock {
   low52w?: number | null;
   currency: 'KRW' | 'USD';
   warningBadges?: string[]; // e.g., ['가치함정 의심', '고부채']
+  momentumBadges?: string[]; // e.g., ['신고가 근접', '추세강세']
 }
 
 export interface MarketIndex {

@@ -2275,6 +2275,38 @@ function computeStockWarningBadges(s) {
   return badges;
 }
 
+// 퀀트 모멘텀 지표 자동 감지 엔진 (가격 탄력/신고가/추세 기반)
+function computeStockMomentumBadges(s) {
+  const badges = [];
+
+  // 1. 52주 신고가 근접도
+  if (typeof s.high52w === 'number' && s.high52w > 0 && typeof s.price === 'number' && s.price > 0) {
+    const nearHighRatio = s.price / s.high52w;
+    if (nearHighRatio >= 0.95) {
+      badges.push('신고가 돌파(95%↑)');
+    } else if (nearHighRatio >= 0.90) {
+      badges.push('신고가 근접(90%↑)');
+    }
+  }
+
+  // 2. 골든 모멘텀 구간 (RSI 55 ~ 70: 과열되지 않으면서 건전한 상승 추세)
+  if (typeof s.rsi14 === 'number' && s.rsi14 >= 55 && s.rsi14 <= 70) {
+    badges.push('추세강세(RSI 55~70)');
+  }
+
+  // 3. 고수익 성장 펀더멘털 (ROE 15% 이상)
+  if (typeof s.roe === 'number' && s.roe >= 15.0) {
+    badges.push('고수익 성장(ROE 15%↑)');
+  }
+
+  // 4. 가격 상승 탄력 (당일 +3% 이상 상승)
+  if (typeof s.changeRate === 'number' && s.changeRate >= 3.0) {
+    badges.push('상승탄력(+3%↑)');
+  }
+
+  return badges;
+}
+
 function getStocks(filters = {}) {
   return new Promise((resolve, reject) => {
     let query = 'SELECT * FROM stocks WHERE 1=1';
@@ -2329,7 +2361,8 @@ function getStocks(filters = {}) {
       if (err) return reject(err);
       resolve(rows.map(r => ({
         ...r,
-        warningBadges: computeStockWarningBadges(r)
+        warningBadges: computeStockWarningBadges(r),
+        momentumBadges: computeStockMomentumBadges(r)
       })));
     });
   });
@@ -2342,7 +2375,8 @@ function getStock(symbol) {
       if (!row) return resolve(null);
       resolve({
         ...row,
-        warningBadges: computeStockWarningBadges(row)
+        warningBadges: computeStockWarningBadges(row),
+        momentumBadges: computeStockMomentumBadges(row)
       });
     });
   });
@@ -2396,7 +2430,8 @@ function getWatchlist() {
       if (err) return reject(err);
       resolve((rows || []).map(r => ({
         ...r,
-        warningBadges: computeStockWarningBadges(r)
+        warningBadges: computeStockWarningBadges(r),
+        momentumBadges: computeStockMomentumBadges(r)
       })));
     });
   });
