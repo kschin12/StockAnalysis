@@ -57,11 +57,11 @@ export const DynamicQuantGuide: React.FC<DynamicQuantGuideProps> = ({
         </div>
       </div>
 
-      {/* Dynamic Recommendation Cards Grid */}
+      {/* Dynamic Recommendation Cards Stack */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '12px'
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
       }}>
         {/* KRX Value Strategy Card */}
         <div style={{

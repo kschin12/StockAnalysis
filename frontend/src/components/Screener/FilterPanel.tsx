@@ -140,8 +140,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       {/* Filter Inputs Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '16px'
+        gridTemplateColumns: '1fr 1fr',
+        gap: '12px'
       }}>
         {/* Market */}
         <div>

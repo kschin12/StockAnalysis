@@ -145,159 +145,173 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* 1. Dynamic Quant Strategy Guide Card */}
-      <DynamicQuantGuide
-        metrics={quantMetrics}
-        onApplyDynamicFilters={handleApplyDynamicFilters}
-      />
+      {/* 2-Column Sidebar Layout */}
+      <div className="screener-grid-layout">
+        {/* Left Column: Dynamic Quant Guide & Filter Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* 1. Dynamic Quant Strategy Guide Card */}
+          <DynamicQuantGuide
+            metrics={quantMetrics}
+            onApplyDynamicFilters={handleApplyDynamicFilters}
+          />
 
-      {/* 동적 디스커버리 탭 메뉴 & 시장 선택 바 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'rgba(17, 24, 39, 0.6)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
-          <button 
-            className={`btn ${activeCategory === 'market_cap' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveCategory('market_cap')}
-          >
-            🏆 시가총액 상위
-          </button>
-          <button 
-            className={`btn ${activeCategory === 'volume' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveCategory('volume')}
-          >
-            🔥 거래량 상위
-          </button>
-          <button 
-            className={`btn ${activeCategory === 'rise' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveCategory('rise')}
-          >
-            🚀 급등주
-          </button>
-          <button 
-            className={`btn ${activeCategory === 'watchlist' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveCategory('watchlist')}
-          >
-            ⭐ 내 관심종목
-          </button>
-          <button 
-            className={`btn ${activeCategory === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveCategory('all')}
-          >
-            🌐 전체 종목 필터링
-          </button>
+          {/* 2. Screener Filter Panel */}
+          <FilterPanel
+            filters={filters}
+            setFilters={setFilters}
+            presets={presets}
+            onApplyPreset={onApplyPreset}
+            onSavePreset={onSavePreset}
+            onDeletePreset={onDeletePreset}
+            onResetFilters={onResetFilters}
+          />
         </div>
 
-        {/* 시장 전환 퀵 버튼 (전체 / 한국 / 미국) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--text-muted)', marginRight: '4px' }}>시장:</span>
-          <button
-            className={`badge ${filters.market === 'ALL' ? 'badge-tag' : ''}`}
-            style={{ cursor: 'pointer', padding: '5px 10px', border: filters.market === 'ALL' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'ALL' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
-            onClick={() => setFilters(prev => ({ ...prev, market: 'ALL' }))}
-          >
-            전체 (KRX+US)
-          </button>
-          <button
-            className={`badge ${filters.market === 'KRX' ? 'badge-tag' : ''}`}
-            style={{ cursor: 'pointer', padding: '5px 10px', border: filters.market === 'KRX' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'KRX' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'KRX' ? '#fff' : 'var(--text-secondary)' }}
-            onClick={() => setFilters(prev => ({ ...prev, market: 'KRX' }))}
-          >
-            🇰🇷 한국 (KRX)
-          </button>
-          <button
-            className={`badge ${filters.market === 'US' ? 'badge-tag' : ''}`}
-            style={{ cursor: 'pointer', padding: '5px 10px', border: filters.market === 'US' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fff' : 'var(--text-secondary)' }}
-            onClick={() => setFilters(prev => ({ ...prev, market: 'US' }))}
-          >
-            🇺🇸 미국 (US)
-          </button>
+        {/* Right Main Column: Category Tabs, Market Filter, Watchlist Input & Results Table */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
+          {/* 동적 디스커버리 탭 메뉴 & 시장 선택 바 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'rgba(17, 24, 39, 0.6)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', flexWrap: 'wrap' }}>
+              <button 
+                className={`btn ${activeCategory === 'market_cap' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveCategory('market_cap')}
+                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+              >
+                🏆 시총 상위
+              </button>
+              <button 
+                className={`btn ${activeCategory === 'volume' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveCategory('volume')}
+                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+              >
+                🔥 거래량 상위
+              </button>
+              <button 
+                className={`btn ${activeCategory === 'rise' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveCategory('rise')}
+                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+              >
+                🚀 급등주
+              </button>
+              <button 
+                className={`btn ${activeCategory === 'watchlist' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveCategory('watchlist')}
+                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+              >
+                ⭐ 내 관심종목
+              </button>
+              <button 
+                className={`btn ${activeCategory === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveCategory('all')}
+                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+              >
+                🌐 전체 종목
+              </button>
+            </div>
+
+            {/* 시장 전환 퀵 버튼 (전체 / 한국 / 미국) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+              <span style={{ color: 'var(--text-muted)', marginRight: '2px' }}>시장:</span>
+              <button
+                className={`badge ${filters.market === 'ALL' ? 'badge-tag' : ''}`}
+                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'ALL' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'ALL' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
+                onClick={() => setFilters(prev => ({ ...prev, market: 'ALL' }))}
+              >
+                전체
+              </button>
+              <button
+                className={`badge ${filters.market === 'KRX' ? 'badge-tag' : ''}`}
+                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KRX' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'KRX' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'KRX' ? '#fff' : 'var(--text-secondary)' }}
+                onClick={() => setFilters(prev => ({ ...prev, market: 'KRX' }))}
+              >
+                🇰🇷 한국
+              </button>
+              <button
+                className={`badge ${filters.market === 'US' ? 'badge-tag' : ''}`}
+                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'US' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fff' : 'var(--text-secondary)' }}
+                onClick={() => setFilters(prev => ({ ...prev, market: 'US' }))}
+              >
+                🇺🇸 미국
+              </button>
+            </div>
+          </div>
+
+          {isLoadingDynamic ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              데이터 수집 중...
+            </div>
+          ) : (
+            <>
+              {/* Watchlist Input Form */}
+              {activeCategory === 'watchlist' && (
+                <div style={{ padding: '16px 20px', background: 'rgba(30, 41, 59, 0.7)', borderRadius: '10px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>⭐ 관심 종목 직접 등록 (국내 & 미국 실시간 연동)</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>예: 미국(AAPL, TSLA, NVDA, PLTR, SPY) / 한국(005930, 000660)</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input 
+                      id="watchlist-symbol"
+                      type="text" 
+                      placeholder="종목 티커 또는 코드 입력 (예: TSLA, NVDA, AAPL, 005930)" 
+                      className="input-field"
+                      style={{ flex: 1, padding: '9px 12px', fontSize: '0.85rem' }}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          const input = e.currentTarget;
+                          const symbol = input.value.trim().toUpperCase();
+                          if (!symbol) return;
+                          input.disabled = true;
+                          try {
+                            const { addToWatchlist, fetchWatchlist } = await import('../../api/stockApi');
+                            await addToWatchlist(symbol, '');
+                            input.value = '';
+                            const data = await fetchWatchlist();
+                            setDynamicStocks(data);
+                          } finally {
+                            input.disabled = false;
+                            input.focus();
+                          }
+                        }
+                      }}
+                    />
+                    <button 
+                      className="btn btn-primary"
+                      style={{ whiteSpace: 'nowrap', padding: '9px 16px', fontSize: '0.85rem' }}
+                      onClick={async () => {
+                        const input = document.getElementById('watchlist-symbol') as HTMLInputElement;
+                        const symbol = input?.value?.trim().toUpperCase();
+                        if (!symbol) return;
+                        input.disabled = true;
+                        try {
+                          const { addToWatchlist, fetchWatchlist } = await import('../../api/stockApi');
+                          await addToWatchlist(symbol, '');
+                          input.value = '';
+                          const data = await fetchWatchlist();
+                          setDynamicStocks(data);
+                        } finally {
+                          input.disabled = false;
+                        }
+                      }}
+                    >
+                      + 관심종목 추가
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Results Data Table */}
+              <StockTable
+                stocks={filteredStocks}
+                watchlist={watchlist}
+                activeCategory={activeCategory}
+                onToggleWatchlist={onToggleWatchlist}
+                onSelectStock={onSelectStock}
+              />
+            </>
+          )}
         </div>
       </div>
-
-      {isLoadingDynamic ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          데이터 수집 중...
-        </div>
-      ) : (
-        <>
-          {/* 2. Screener Filter Panel */}
-      <FilterPanel
-        filters={filters}
-        setFilters={setFilters}
-        presets={presets}
-        onApplyPreset={onApplyPreset}
-        onSavePreset={onSavePreset}
-        onDeletePreset={onDeletePreset}
-        onResetFilters={onResetFilters}
-      />
-
-          {/* Watchlist Input Form */}
-          {activeCategory === 'watchlist' && (
-            <div style={{ padding: '16px 20px', background: 'rgba(30, 41, 59, 0.7)', borderRadius: '10px', border: '1px solid var(--border-subtle)', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>⭐ 관심 종목 직접 등록 (국내 & 미국 실시간 연동)</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>예: 미국(AAPL, TSLA, NVDA, PLTR, SPY) / 한국(005930, 000660)</span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input 
-                  id="watchlist-symbol"
-                  type="text" 
-                  placeholder="종목 티커 또는 코드 입력 (예: TSLA, NVDA, AAPL, 005930)" 
-                  className="input-field"
-                  style={{ flex: 1, padding: '9px 12px', fontSize: '0.85rem' }}
-                  onKeyDown={async (e) => {
-                    if (e.key === 'Enter') {
-                      const input = e.currentTarget;
-                      const symbol = input.value.trim().toUpperCase();
-                      if (!symbol) return;
-                      input.disabled = true;
-                      try {
-                        const { addToWatchlist, fetchWatchlist } = await import('../../api/stockApi');
-                        await addToWatchlist(symbol, '');
-                        input.value = '';
-                        const data = await fetchWatchlist();
-                        setDynamicStocks(data);
-                      } finally {
-                        input.disabled = false;
-                        input.focus();
-                      }
-                    }
-                  }}
-                />
-                <button 
-                  className="btn btn-primary"
-                  style={{ whiteSpace: 'nowrap', padding: '9px 16px', fontSize: '0.85rem' }}
-                  onClick={async () => {
-                    const input = document.getElementById('watchlist-symbol') as HTMLInputElement;
-                    const symbol = input?.value?.trim().toUpperCase();
-                    if (!symbol) return;
-                    input.disabled = true;
-                    try {
-                      const { addToWatchlist, fetchWatchlist } = await import('../../api/stockApi');
-                      await addToWatchlist(symbol, '');
-                      input.value = '';
-                      const data = await fetchWatchlist();
-                      setDynamicStocks(data);
-                    } finally {
-                      input.disabled = false;
-                    }
-                  }}
-                >
-                  + 관심종목 추가
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 3. Results Data Table */}
-          <StockTable
-            stocks={filteredStocks}
-            watchlist={watchlist}
-            activeCategory={activeCategory}
-            onToggleWatchlist={onToggleWatchlist}
-            onSelectStock={onSelectStock}
-          />
-        </>
-      )}
     </div>
   );
 };
