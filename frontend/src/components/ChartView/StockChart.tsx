@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts';
-import type { IChartApi, CandlestickData, HistogramData, LineData } from 'lightweight-charts';
+import type { IChartApi, CandlestickData, HistogramData } from 'lightweight-charts';
 import type { Stock, NewsItem } from '../../types/stock';
 import { fetchStockCandles, searchStockNews } from '../../api/stockApi';
 import { generateMockCandles } from '../../mock/stockData';
@@ -8,6 +8,7 @@ import { TrendingUp, TrendingDown, Newspaper, Loader2, Search } from 'lucide-rea
 import { getBadgeDetail, calculateBadgeTooltipPosition } from '../../utils/badgeDetails';
 import type { ActiveTooltipState } from '../../utils/badgeDetails';
 import { BadgeTooltipPortal } from '../common/BadgeTooltipPortal';
+import { aggregateCandles, calculateSMA, calculateBollingerBands, calculateRSI, calculateMACD } from '../../utils/chartIndicators';
 
 interface StockChartProps {
   stock: Stock;
@@ -20,6 +21,12 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<IChartApi | null>(null);
   const [periodDays, setPeriodDays] = useState<number>(90);
+  const [candleInterval, setCandleInterval] = useState<'D' | 'W' | 'M'>('D'); // Daily by default
+  const [showMA20, setShowMA20] = useState<boolean>(true);
+  const [showMA60, setShowMA60] = useState<boolean>(false);
+  const [showBB, setShowBB] = useState<boolean>(true);
+  const [showRSI, setShowRSI] = useState<boolean>(true);
+  const [showMACD, setShowMACD] = useState<boolean>(true);
   const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [activeBadgeTooltip, setActiveBadgeTooltip] = useState<ActiveTooltipState | null>(null);
   const [isSearchingNews, setIsSearchingNews] = useState<boolean>(false);
@@ -58,7 +65,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   };
 
   const relatedNews = searchedNews !== null 
-    ? searchedNews.slice(0, 10) 
+    ? searchedNews.slice(0, 5) 
     : news.filter(n => n.symbol === stock.symbol).slice(0, 5);
   const isUp = stock.changeRate >= 0;
 
@@ -67,7 +74,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
     try {
       const results = await searchStockNews(stock.symbol, stock.name);
       if (results && results.length > 0) {
-        setSearchedNews(results);
+        setSearchedNews(results.slice(0, 5));
       }
     } catch (err) {
       console.error('최신 뉴스 검색 실패:', err);
@@ -126,19 +133,35 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
       scaleMargins: { top: 0.8, bottom: 0 }
     });
 
-    const ma20Series = chart.addSeries(LineSeries, {
-      color: '#f59e0b',
-      lineWidth: 2,
-      title: 'MA20'
-    });
+    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 2, title: 'MA20' });
+    const ma60Series = chart.addSeries(LineSeries, { color: '#34d399', lineWidth: 2, title: 'MA60' });
+    const bbUpperSeries = chart.addSeries(LineSeries, { color: '#a0aec0', lineWidth: 1, title: 'BB Upper' });
+    const bbLowerSeries = chart.addSeries(LineSeries, { color: '#a0aec0', lineWidth: 1, title: 'BB Lower' });
+    const bbMiddleSeries = chart.addSeries(LineSeries, { color: '#fbbf24', lineWidth: 1, title: 'BB Middle' });
+    const rsiSeries = chart.addSeries(LineSeries, { color: '#60a5fa', lineWidth: 2, title: 'RSI', priceScaleId: 'RSI' });
+    const macdLineSeries = chart.addSeries(LineSeries, { color: '#f43f5e', lineWidth: 2, title: 'MACD', priceScaleId: 'MACD' });
+    const macdSignalSeries = chart.addSeries(LineSeries, { color: '#10b981', lineWidth: 2, title: 'Signal', priceScaleId: 'MACD' });
+    const macdHistSeries = chart.addSeries(HistogramSeries, { color: '#6366f1', priceScaleId: 'MACD', priceFormat: { type: 'price' } });
 
     async function loadCandles() {
       setIsLoadingCandles(true);
       try {
         const realCandles = await fetchStockCandles(stock.symbol, periodDays);
-        const candles = (realCandles && realCandles.length > 0)
+        const rawCandles = (realCandles && realCandles.length > 0)
           ? realCandles
           : generateMockCandles(stock.price, periodDays);
+
+        // Map raw candles to RealCandleItem format (volume optional)
+        const formattedCandles: RealCandleItem[] = rawCandles.map((c: any) => ({
+          time: c.time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+          volume: c.volume
+        }));
+
+        const candles = candleInterval === 'D' ? formattedCandles : aggregateCandles(formattedCandles, candleInterval);
 
         if (!isMounted) return;
 
@@ -156,18 +179,24 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(244, 63, 94, 0.35)'
         }));
 
-        const ma20Data: LineData[] = [];
-        for (let i = 0; i < candles.length; i++) {
-          if (i >= 19) {
-            const slice = candles.slice(i - 19, i + 1);
-            const avg = slice.reduce((sum: number, item: any) => sum + item.close, 0) / 20;
-            ma20Data.push({ time: candles[i].time as any, value: Math.round(avg * 100) / 100 });
-          }
-        }
+        const ma20Data = calculateSMA(candles, 20);
+        const ma60Data = calculateSMA(candles, 60);
+        const { upper: bbUpper, lower: bbLower, middle: bbMiddle } = calculateBollingerBands(candles);
+        const rsiData = calculateRSI(candles);
+        const { macdLine, signalLine, histogram } = calculateMACD(candles);
+
+        ma20Series.setData(showMA20 ? ma20Data : []);
+        ma60Series.setData(showMA60 ? ma60Data : []);
+        bbUpperSeries.setData(showBB ? bbUpper : []);
+        bbLowerSeries.setData(showBB ? bbLower : []);
+        bbMiddleSeries.setData(showBB ? bbMiddle : []);
+        rsiSeries.setData(showRSI ? rsiData : []);
+        macdLineSeries.setData(showMACD ? macdLine : []);
+        macdSignalSeries.setData(showMACD ? signalLine : []);
+        macdHistSeries.setData(showMACD ? histogram : []);
 
         candleSeries.setData(candleData);
         volumeSeries.setData(volumeData);
-        ma20Series.setData(ma20Data);
 
         chart.timeScale().fitContent();
       } catch (err) {
@@ -192,7 +221,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [stock.symbol, periodDays]);
+  }, [stock.symbol, periodDays, candleInterval, showMA20, showMA60, showBB, showRSI, showMACD]);
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -252,7 +281,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
             <span style={{ fontSize: '0.75rem', color: '#6366f1' }}>■ 거래량(Volume)</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {[30, 60, 90, 180].map(days => (
               <button
                 key={days}
@@ -263,6 +292,34 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                 {days}일
               </button>
             ))}
+
+            <span style={{ fontSize: '0.75rem', marginLeft: '8px' }}>Interval:</span>
+            {(['D', 'W', 'M'] as const).map(iv => (
+              <button
+                key={iv}
+                onClick={() => setCandleInterval(iv)}
+                className={`btn ${candleInterval === iv ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+              >
+                {iv === 'D' ? '일' : iv === 'W' ? '주' : '월'}
+              </button>
+            ))}
+
+            <label className="checkbox" style={{ marginLeft: '8px' }}>
+              <input type="checkbox" checked={showMA20} onChange={e => setShowMA20(e.target.checked)} /> MA20
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={showMA60} onChange={e => setShowMA60(e.target.checked)} /> MA60
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={showBB} onChange={e => setShowBB(e.target.checked)} /> BB
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={showRSI} onChange={e => setShowRSI(e.target.checked)} /> RSI
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={showMACD} onChange={e => setShowMACD(e.target.checked)} /> MACD
+            </label>
           </div>
         </div>
 
