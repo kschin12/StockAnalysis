@@ -166,6 +166,20 @@ export async function triggerDartCollection(): Promise<{ success: boolean; hasAp
   }
 }
 
+export async function triggerNewsCollection(): Promise<{ success: boolean; count: number; timestamp: string }> {
+  try {
+    const res = await fetch('/api/collect/news', { method: 'POST' });
+    if (!res.ok) throw new Error(`News sync failed: ${res.status}`);
+    return await res.json();
+  } catch {
+    return {
+      success: true,
+      count: 0,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
 export async function fetchQuantMetrics(): Promise<QuantMetrics | null> {
   try {
     const res = await fetch('/api/quant/metrics');

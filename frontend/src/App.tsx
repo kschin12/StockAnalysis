@@ -6,7 +6,7 @@ import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
 import { getSavedPresets, saveCustomPreset, deleteCustomPreset } from './utils/storage';
-import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection } from './api/stockApi';
+import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection, triggerNewsCollection } from './api/stockApi';
 import { RefreshCw } from 'lucide-react';
 
 const INITIAL_FILTERS: FilterState = {
@@ -154,7 +154,16 @@ export const App: React.FC = () => {
       }).catch((e) => console.warn('Daily DART sync error:', e));
     }
 
-    // 2) ⏱️ 실시간 시세 동기화: 사용자가 접속해 있는 동안 1분(60초)마다 자동 갱신
+    // 2) 📰 뉴스 & DART 공시 동기화: 화면 접속 시 1회 데이터 수집 후 DB 저장
+    const sessionKey = `news_synced_${today}`;
+    if (!sessionStorage.getItem(sessionKey)) {
+      triggerNewsCollection().then(() => {
+        sessionStorage.setItem(sessionKey, '1');
+        fetchNews().then(n => setNews(n));
+      }).catch((e) => console.warn('On-visit news sync error:', e));
+    }
+
+    // 3) ⏱️ 실시간 시세 동기화: 사용자가 접속해 있는 동안 1분(60초)마다 자동 갱신
     const priceInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         triggerRealtimeCollection()

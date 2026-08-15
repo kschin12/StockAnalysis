@@ -152,6 +152,18 @@ app.post('/api/collect/dart', async (req, res) => {
   }
 });
 
+// 8-1. 전체 뉴스 및 DART 공시 실시간 수집 실행 (온디맨드 트리거)
+app.post('/api/collect/news', async (req, res) => {
+  try {
+    await syncAllRealNews();
+    const news = await getNews();
+    res.json({ success: true, count: news.length, data: news });
+  } catch (err) {
+    console.error('News collection error:', err);
+    res.status(500).json({ error: 'Failed to collect news' });
+  }
+});
+
 // 9. 시장 통계 기반 동적 퀀트 추천 기준 산출
 app.get('/api/quant/metrics', async (req, res) => {
   try {
@@ -289,20 +301,35 @@ app.listen(PORT, () => {
   console.log(`👉 Web App & API: http://localhost:${PORT}`);
 
   // =========================================================================
-  // 🔍 [NEWS_REFRESH_INTERVAL] 뉴스, DART 공시 및 랭킹 정기 자동 새로고침 주기 설정
-  // 검색 키워드: NEWS_REFRESH_INTERVAL 또는 '자동 새로고침 주기'
+  // 🔍 [DAILY_6AM_SCHEDULE] 미접속 시 매일 오전 6시(06:00) 전 테이블 백엔드 자동 수집
+  // 검색 키워드: DAILY_6AM_SCHEDULE 또는 '매일 6시 수집'
+  // 수집 대상: 시세, 지수, 섹터, 뉴스, DART 공시, 재무제표, 랭킹 전 테이블
   // =========================================================================
-  // 1) 서버 시작 3초 후 최초 1회 즉시 수집
-  setTimeout(() => {
-    syncAllRealNews().catch(e => console.warn('News sync error:', e.message));
-    refreshAllRankingsAndSave().catch(e => console.warn('Initial cron error:', e.message));
-  }, 3000);
+  let lastDailySyncDate = '';
 
-  // 2) 4시간마다 정기 자동 수집 (4시간 = 4 * 60 * 60 * 1000 ms)
-  const REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000; // ⏱️ 4시간 주기
+  async function runFullDailySync() {
+    console.log(`[${new Date().toISOString()}] 🌅 [Daily 06:00 AM Sync] 전 테이블(시세, 지수, 섹터, 뉴스, 공시, 재무, 랭킹) 일괄 수집 시작...`);
+    try {
+      // 1. 시장 지수, 당일 상위 종목 시세 & 랭킹 수집 및 DB 정돈
+      await refreshAllRankingsAndSave();
+      // 2. 실시간 뉴스 및 DART 공시 수집
+      await syncAllRealNews();
+      // 3. DART 재무제표 동기화
+      await runDartFinancialSync();
+      console.log(`[${new Date().toISOString()}] ✅ [Daily 06:00 AM Sync] 전 테이블 일괄 동기화 완료!`);
+    } catch (err) {
+      console.warn(`❌ [Daily 06:00 AM Sync Error]:`, err.message);
+    }
+  }
+
+  // 매 30초마다 현재 시각을 확인하여 매일 오전 6시(06:00)에 1회 자동 수집
   setInterval(() => {
-    console.log(`[${new Date().toISOString()}] 🔄 정기 4시간 뉴스 & 공시 자동 동기화 시작...`);
-    syncAllRealNews().catch(e => console.warn('News sync error:', e.message));
-    refreshAllRankingsAndSave().catch(e => console.warn('Interval cron error:', e.message));
-  }, REFRESH_INTERVAL_MS);
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    // 매일 오전 6시 정각 (06:00) 감지
+    if (now.getHours() === 6 && now.getMinutes() === 0 && lastDailySyncDate !== todayStr) {
+      lastDailySyncDate = todayStr;
+      runFullDailySync();
+    }
+  }, 30000);
 });
