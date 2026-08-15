@@ -48,7 +48,7 @@ function evaluateMarketQuantMetrics() {
       // 3. 시장 통계 기반 동적 추천 기준점 (Dynamic Thresholds)
       // 한국: 코리아 디스카운트 감안, 시장 중앙값의 80%를 저평가 기준으로 자동 설정
       const dynamicKrxValueCriteria = {
-        name: '🇰🇷 한국 시장 맞춤 저평가 우량주 기준',
+        name: '한국 시장 맞춤 저평가 우량주 기준',
         targetPer: Math.round((krxMedianPer * 0.8) * 10) / 10 || 8.5,
         targetPbr: Math.round((krxMedianPbr * 0.85) * 100) / 100 || 0.85,
         targetRoe: Math.max(8.0, Math.round(krxAvgRoe * 10) / 10),
@@ -57,7 +57,7 @@ function evaluateMarketQuantMetrics() {
 
       // 미국: 빅테크 프리미엄 감안, 시장 중앙값 수준 PER + 고ROE(15%↑)
       const dynamicUsValueCriteria = {
-        name: '🇺🇸 미국 시장 맞춤 우량 성장주 기준',
+        name: '미국 시장 맞춤 우량 성장주 기준',
         targetPer: Math.round((usMedianPer * 0.9) * 10) / 10 || 22.0,
         targetPbr: Math.round((usMedianPbr * 0.8) * 10) / 10 || 8.0,
         targetRoe: Math.max(15.0, Math.round(usAvgRoe * 0.5 * 10) / 10),
@@ -66,7 +66,7 @@ function evaluateMarketQuantMetrics() {
 
       // 4. 배당 안정주 동적 기준
       const dynamicDividendCriteria = {
-        name: '🛡️ 글로벌 배당 안정주 기준',
+        name: '글로벌 배당 안정주 기준',
         targetDividendYield: Math.max(3.0, Math.round((krxAvgDiv + 1.0) * 10) / 10),
         maxDebtRatio: 100.0,
         reason: `국내외 평균 배당률 대비 +1.0%p 프리미엄 및 부채비율 100% 이하 재무 건전성 필터`
