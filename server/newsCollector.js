@@ -117,7 +117,25 @@ async function fetchLiveKoreanNews() {
   return count;
 }
 
-// 2. 미국/글로벌 증시 실시간 실기사 수집 (Yahoo Finance RSS 원문 직링크)
+async function translateToKorean(text) {
+  if (!text || text.trim().length === 0) return text;
+  // 영문 텍스트가 있는 경우에만 번역
+  if (!/[a-zA-Z]{3,}/.test(text)) return text;
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return text;
+    const data = await res.json();
+    if (data && data[0]) {
+      return data[0].map(x => x[0]).join('').trim();
+    }
+  } catch (err) {
+    // 번역 실패 시 원문 유지
+  }
+  return text;
+}
+
+// 2. 미국/글로벌 증시 실시간 실기사 수집 (Yahoo Finance RSS 원문 직링크 + 자동 한글 번역)
 async function fetchLiveUsNews() {
   const rssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,NVDA,MSFT,TSLA,GOOGL,AMZN,AMD,META';
   let count = 0;
@@ -145,7 +163,7 @@ async function fetchLiveUsNews() {
       const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
       
       title = cleanHtmlText(title, '');
-      const desc = cleanHtmlText(descMatch ? descMatch[1] : '', title);
+      let desc = cleanHtmlText(descMatch ? descMatch[1] : '', title);
 
       if (!title) continue;
 
@@ -167,10 +185,14 @@ async function fetchLiveUsNews() {
       else if (title.toLowerCase().includes('amazon') || title.toLowerCase().includes('aws')) { symbol = 'AMZN'; companyName = 'Amazon'; }
       else if (title.toLowerCase().includes('meta') || title.toLowerCase().includes('zuckerberg')) { symbol = 'META'; companyName = 'Meta'; }
 
-      const id = 'us_' + Buffer.from(title).toString('base64').substring(0, 20);
-      const imp = analyzeImportance(title, desc, false);
+      // 자동 한글 번역 수행
+      const translatedTitle = await translateToKorean(title);
+      const translatedDesc = await translateToKorean(desc);
 
-      stmt.run([id, symbol, companyName, title, desc || title, sourceName, pubDate, link, 'positive', 0, imp]);
+      const id = 'us_' + Buffer.from(title).toString('base64').substring(0, 20);
+      const imp = analyzeImportance(translatedTitle, translatedDesc, false);
+
+      stmt.run([id, symbol, companyName, translatedTitle, translatedDesc || translatedTitle, sourceName, pubDate, link, 'positive', 0, imp]);
       count++;
     }
 
