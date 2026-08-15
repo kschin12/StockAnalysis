@@ -4,6 +4,7 @@ import { Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-
 import { exportStocksToCsv } from '../../utils/exportCsv';
 import { getBadgeDetail, calculateBadgeTooltipPosition } from '../../utils/badgeDetails';
 import type { ActiveTooltipState } from '../../utils/badgeDetails';
+import { BadgeTooltipPortal } from '../common/BadgeTooltipPortal';
 
 interface StockTableProps {
   stocks: Stock[];
@@ -27,6 +28,13 @@ export const StockTable: React.FC<StockTableProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [activeBadgeTooltip, setActiveBadgeTooltip] = useState<ActiveTooltipState | null>(null);
+
+  // 스크롤 시 팝업 닫기
+  useEffect(() => {
+    const handleScroll = () => setActiveBadgeTooltip(null);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // 카테고리 탭 전환 시 정렬 기준 자동 동기화
   useEffect(() => {
@@ -439,65 +447,8 @@ export const StockTable: React.FC<StockTableProps> = ({
         </div>
       )}
 
-      {/* Floating Detailed Hover Tooltip for Risk & Momentum Badges */}
-      {activeBadgeTooltip && (
-        <div
-          style={{
-            position: 'fixed',
-            left: activeBadgeTooltip.x,
-            top: activeBadgeTooltip.y,
-            width: '310px',
-            background: 'rgba(15, 23, 42, 0.98)',
-            border: `1px solid ${activeBadgeTooltip.type === 'risk' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(99, 102, 241, 0.6)'}`,
-            borderRadius: '8px',
-            padding: '12px 14px',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(12px)',
-            zIndex: 99999,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            animation: 'fadeIn 0.15s ease-out forwards',
-            pointerEvents: 'none'
-          }}
-        >
-          <div style={{
-            fontWeight: 700,
-            fontSize: '0.85rem',
-            color: activeBadgeTooltip.type === 'risk' ? '#f87171' : '#818cf8',
-            borderBottom: '1px solid var(--border-subtle)',
-            paddingBottom: '4px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <span>{activeBadgeTooltip.title}</span>
-            <span style={{
-              fontSize: '0.65rem',
-              padding: '1px 5px',
-              borderRadius: '3px',
-              background: activeBadgeTooltip.type === 'risk' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-              color: activeBadgeTooltip.type === 'risk' ? '#fca5a5' : '#c7d2fe'
-            }}>
-              {activeBadgeTooltip.type === 'risk' ? '위험 감지' : '모멘텀 신호'}
-            </span>
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>
-            {activeBadgeTooltip.desc}
-          </div>
-          <div style={{
-            fontSize: '0.72rem',
-            color: 'var(--text-secondary)',
-            background: 'rgba(0, 0, 0, 0.3)',
-            padding: '6px 8px',
-            borderRadius: '4px',
-            lineHeight: 1.4,
-            borderLeft: `2px solid ${activeBadgeTooltip.type === 'risk' ? '#f87171' : '#818cf8'}`
-          }}>
-            <strong style={{ color: '#fff' }}>사유 및 유의사항:</strong> {activeBadgeTooltip.reason}
-          </div>
-        </div>
-      )}
+      {/* Floating Detailed Hover Tooltip for Risk & Momentum Badges (Body Portal) */}
+      <BadgeTooltipPortal tooltip={activeBadgeTooltip} />
     </div>
   );
 };
