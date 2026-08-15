@@ -288,14 +288,20 @@ app.listen(PORT, () => {
   console.log(`🚀 AlphaQuant REST API Server listening on port ${PORT}`);
   console.log(`👉 Web App & API: http://localhost:${PORT}`);
 
-  // 서버 시작 3초 후 초기 랭킹 수집 1회 실행 & 이후 5분(300초)마다 정기 자동 수집
+  // =========================================================================
+  // 🔍 [NEWS_REFRESH_INTERVAL] 뉴스, DART 공시 및 랭킹 정기 자동 새로고침 주기 설정
+  // 검색 키워드: NEWS_REFRESH_INTERVAL 또는 '자동 새로고침 주기'
+  // =========================================================================
+  // 1) 서버 시작 3초 후 최초 1회 즉시 수집
   setTimeout(() => {
     syncAllRealNews().catch(e => console.warn('News sync error:', e.message));
     refreshAllRankingsAndSave().catch(e => console.warn('Initial cron error:', e.message));
   }, 3000);
 
-  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5분
+  // 2) 4시간마다 정기 자동 수집 (4시간 = 4 * 60 * 60 * 1000 ms)
+  const REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000; // ⏱️ 4시간 주기
   setInterval(() => {
+    console.log(`[${new Date().toISOString()}] 🔄 정기 4시간 뉴스 & 공시 자동 동기화 시작...`);
     syncAllRealNews().catch(e => console.warn('News sync error:', e.message));
     refreshAllRankingsAndSave().catch(e => console.warn('Interval cron error:', e.message));
   }, REFRESH_INTERVAL_MS);
