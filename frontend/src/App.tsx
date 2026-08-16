@@ -40,7 +40,7 @@ export const App: React.FC = () => {
   const [selectedStockSymbol, setSelectedStockSymbol] = useState<string>(() => parseHash().symbol);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [presets, setPresets] = useState<CustomPreset[]>([]);
-  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [watchlist, setWatchlist] = useState<string[]>(() => getWatchlist());
 
   // 탭 변경 시 브라우저 히스토리에 푸시 (이전/다음 페이지 활성화)
   const handleTabChange = (tab: 'dashboard' | 'screener' | 'chart' | 'news') => {
@@ -99,6 +99,14 @@ export const App: React.FC = () => {
       const localWl = getWatchlist();
       const serverSymbols = wlData && wlData.length > 0 ? wlData.map(w => w.symbol) : [];
       const mergedWl = Array.from(new Set([...localWl, ...serverSymbols]));
+      if (localWl.length > 0 && serverSymbols.length === 0) {
+        import('./api/stockApi').then(({ addToWatchlist }) => {
+          for (const s of localWl) {
+            addToWatchlist(s, '').catch(() => {});
+          }
+        });
+      }
+      localStorage.setItem('QUANT_SCREENER_WATCHLIST', JSON.stringify(mergedWl));
       setWatchlist(mergedWl);
       setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (e) {

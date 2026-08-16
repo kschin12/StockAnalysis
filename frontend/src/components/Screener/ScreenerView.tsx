@@ -67,24 +67,44 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   const [activeCategory, setActiveCategory] = useState<'all' | 'market_cap' | 'volume' | 'rise' | 'fall' | 'watchlist'>('market_cap');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 필터 적용 로직 (카테고리 선택 시 0초 즉시 정렬 표시)
+  // 필터 적용 로직 (카테고리 선택 시 즉시 정렬 및 조건별 상위 추출)
   const getCategoryBaseStocks = () => {
+    // 1. 시장(Market) 분기 필터링
+    let pool = stocks;
+    if (filters.market !== 'ALL') {
+      if (filters.market === 'US') {
+        pool = pool.filter(s => s.market === 'US' || s.currency === 'USD');
+      } else if (filters.market === 'KOSPI') {
+        pool = pool.filter(s => (s.market === 'KRX' || s.currency === 'KRW') && !KOSDAQ_SYMBOLS.has(s.symbol));
+      } else if (filters.market === 'KOSDAQ') {
+        pool = pool.filter(s => (s.market === 'KRX' || s.currency === 'KRW') && KOSDAQ_SYMBOLS.has(s.symbol));
+      } else if (filters.market === 'KRX') {
+        pool = pool.filter(s => s.market === 'KRX' || s.currency === 'KRW');
+      }
+    }
+
     if (activeCategory === 'watchlist') {
-      return stocks.filter(s => watchlist.includes(s.symbol));
+      return pool.filter(s => watchlist.includes(s.symbol));
     }
     if (activeCategory === 'market_cap') {
-      return [...stocks].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+      const sorted = [...pool].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+      const topCount = Math.max(20, Math.ceil(sorted.length * 0.3));
+      return sorted.slice(0, topCount);
     }
     if (activeCategory === 'volume') {
-      return [...stocks].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      const sorted = [...pool].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      const topCount = Math.max(20, Math.ceil(sorted.length * 0.3));
+      return sorted.slice(0, topCount);
     }
     if (activeCategory === 'rise') {
-      return [...stocks].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
+      const sorted = [...pool].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
+      return sorted.slice(0, 20);
     }
     if (activeCategory === 'fall') {
-      return [...stocks].sort((a, b) => (a.changeRate || 0) - (b.changeRate || 0));
+      const sorted = [...pool].sort((a, b) => (a.changeRate || 0) - (b.changeRate || 0));
+      return sorted.slice(0, 20);
     }
-    return stocks;
+    return pool;
   };
 
   const baseStocks = getCategoryBaseStocks();

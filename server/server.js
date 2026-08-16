@@ -197,6 +197,41 @@ app.post('/api/collect/news', async (req, res) => {
   }
 });
 
+// 8-2. DB 데이터 내용 초기화 및 신규 클라우드 라이브 데이터 수집 (테이블 구조 유지)
+app.post('/api/admin/reset-data', async (req, res) => {
+  try {
+    const { db } = require('./db');
+    await new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run('DELETE FROM stocks;');
+        db.run('DELETE FROM market_indices;');
+        db.run('DELETE FROM financials;');
+        db.run('DELETE FROM sectors;');
+        db.run('DELETE FROM news;');
+        db.run('DELETE FROM market_rankings;', (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    });
+    console.log('🧹 [Admin] 구글 클라우드 DB 테이블 데이터 내용 초기화 완료');
+
+    // 즉시 라이브 데이터 새로 수집
+    const rankingRes = await refreshAllRankingsAndSave();
+    const newsRes = await syncAllRealNews();
+
+    res.json({
+      success: true,
+      message: 'DB 데이터 초기화 및 최신 클라우드 실시간 수집 완료',
+      rankings: rankingRes,
+      news: newsRes
+    });
+  } catch (err) {
+    console.error('Reset data error:', err);
+    res.status(500).json({ error: 'Failed to reset data', details: err.message });
+  }
+});
+
 // 9. 시장 통계 기반 동적 퀀트 추천 기준 산출
 app.get('/api/quant/metrics', async (req, res) => {
   try {
