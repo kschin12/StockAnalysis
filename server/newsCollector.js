@@ -334,8 +334,8 @@ async function fetchLiveUsNews() {
           const sourceName = 'Yahoo Finance US';
           const companyName = sym;
           const id = `us_${sym}_${hashString(link)}`;
-          const imp = evaluateNewsImportance(translatedTitle);
           const summary = `[${sym} 해외 주요 이슈] ${translatedTitle} 관련 실시간 외신 보도입니다.`;
+          const imp = analyzeImportance(translatedTitle, summary, false);
 
           results.push({ id, symbol: sym, companyName, title: translatedTitle, summary, source: sourceName, date: pubDate, url: link, sentiment: 'positive', importance: imp });
         }

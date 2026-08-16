@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Stock, FilterState, CustomPreset, QuantMetrics } from '../../types/stock';
-import { fetchRankings, fetchWatchlist } from '../../api/stockApi';
 import { FilterPanel } from './FilterPanel';
 import { StockTable } from './StockTable';
 import { DynamicQuantGuide } from './DynamicQuantGuide';
@@ -66,74 +65,26 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   };
 
   const [activeCategory, setActiveCategory] = useState<'all' | 'market_cap' | 'volume' | 'rise' | 'fall' | 'watchlist'>('market_cap');
-  const [dynamicStocks, setDynamicStocks] = useState<Stock[]>([]);
-  const [isLoadingDynamic, setIsLoadingDynamic] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  useEffect(() => {
-    async function loadDynamic() {
-      if (activeCategory === 'all') return;
-      setIsLoadingDynamic(true);
-      try {
-        const stocksMap = new Map(stocks.map(s => [s.symbol, s]));
-        if (activeCategory === 'watchlist') {
-          const data = await fetchWatchlist();
-          const enriched = (data || []).map((item: Stock) => {
-            const full = stocksMap.get(item.symbol);
-            return {
-              ...item,
-              warningBadges: item.warningBadges?.length ? item.warningBadges : full?.warningBadges || [],
-              momentumBadges: item.momentumBadges?.length ? item.momentumBadges : full?.momentumBadges || []
-            };
-          });
-          setDynamicStocks(enriched);
-        } else {
-          const apiMarket = filters.market === 'KOSPI' || filters.market === 'KOSDAQ' ? 'KRX' : (filters.market || 'ALL');
-          const res = await fetchRankings(activeCategory, apiMarket);
-          if (res.success && res.data) {
-            const enriched = res.data.map((item: Stock) => {
-              const full = stocksMap.get(item.symbol);
-              return {
-                ...item,
-                warningBadges: item.warningBadges?.length ? item.warningBadges : full?.warningBadges || [],
-                momentumBadges: item.momentumBadges?.length ? item.momentumBadges : full?.momentumBadges || []
-              };
-            });
-            setDynamicStocks(enriched);
-          } else {
-            setDynamicStocks([]);
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoadingDynamic(false);
-      }
-    }
-    loadDynamic();
-  }, [activeCategory, filters.market, stocks]);
 
   // 필터 적용 로직 (카테고리 선택 시 0초 즉시 정렬 표시)
   const getCategoryBaseStocks = () => {
-    if (activeCategory === 'all') {
-      return stocks;
-    }
     if (activeCategory === 'watchlist') {
-      return dynamicStocks.length > 0 ? dynamicStocks : stocks.filter(s => watchlist.includes(s.symbol));
+      return stocks.filter(s => watchlist.includes(s.symbol));
     }
     if (activeCategory === 'market_cap') {
-      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+      return [...stocks].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
     }
     if (activeCategory === 'volume') {
-      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      return [...stocks].sort((a, b) => (b.volume || 0) - (a.volume || 0));
     }
     if (activeCategory === 'rise') {
-      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
+      return [...stocks].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
     }
     if (activeCategory === 'fall') {
-      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (a.changeRate || 0) - (b.changeRate || 0));
+      return [...stocks].sort((a, b) => (a.changeRate || 0) - (b.changeRate || 0));
     }
-    return dynamicStocks.length > 0 ? dynamicStocks : stocks;
+    return stocks;
   };
 
   const baseStocks = getCategoryBaseStocks();
@@ -319,80 +270,55 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
             onRefreshData={onRefreshData}
           />
 
-          {isLoadingDynamic ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              데이터 수집 중...
+          {/* Watchlist Input Form */}
+          {activeCategory === 'watchlist' && (
+            <div style={{ padding: '16px 20px', background: 'rgba(30, 41, 59, 0.7)', borderRadius: '10px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>관심 종목 등록 (국내 & 미국 실시간 연동)</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>예: 미국(AAPL, TSLA, NVDA, PLTR, SPY) / 한국(005930, 000660)</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input 
+                  id="watchlist-symbol"
+                  type="text" 
+                  placeholder="종목 티커 또는 코드 입력 (예: TSLA, NVDA, AAPL, 005930)" 
+                  className="input-field"
+                  style={{ flex: 1, padding: '9px 12px', fontSize: '0.85rem' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.currentTarget;
+                      const symbol = input.value.trim().toUpperCase();
+                      if (!symbol) return;
+                      onToggleWatchlist(symbol);
+                      input.value = '';
+                    }
+                  }}
+                />
+                <button 
+                  className="btn btn-primary"
+                  style={{ whiteSpace: 'nowrap', padding: '9px 16px', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    const input = document.getElementById('watchlist-symbol') as HTMLInputElement;
+                    const symbol = input?.value?.trim().toUpperCase();
+                    if (!symbol) return;
+                    onToggleWatchlist(symbol);
+                    input.value = '';
+                  }}
+                >
+                  + 관심종목 추가
+                </button>
+              </div>
             </div>
-          ) : (
-            <>
-              {/* Watchlist Input Form */}
-              {activeCategory === 'watchlist' && (
-                <div style={{ padding: '16px 20px', background: 'rgba(30, 41, 59, 0.7)', borderRadius: '10px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>관심 종목 등록 (국내 & 미국 실시간 연동)</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>예: 미국(AAPL, TSLA, NVDA, PLTR, SPY) / 한국(005930, 000660)</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input 
-                      id="watchlist-symbol"
-                      type="text" 
-                      placeholder="종목 티커 또는 코드 입력 (예: TSLA, NVDA, AAPL, 005930)" 
-                      className="input-field"
-                      style={{ flex: 1, padding: '9px 12px', fontSize: '0.85rem' }}
-                      onKeyDown={async (e) => {
-                        if (e.key === 'Enter') {
-                          const input = e.currentTarget;
-                          const symbol = input.value.trim().toUpperCase();
-                          if (!symbol) return;
-                          input.disabled = true;
-                          try {
-                            const { addToWatchlist, fetchWatchlist } = await import('../../api/stockApi');
-                            await addToWatchlist(symbol, '');
-                            input.value = '';
-                            const data = await fetchWatchlist();
-                            setDynamicStocks(data);
-                          } finally {
-                            input.disabled = false;
-                            input.focus();
-                          }
-                        }
-                      }}
-                    />
-                    <button 
-                      className="btn btn-primary"
-                      style={{ whiteSpace: 'nowrap', padding: '9px 16px', fontSize: '0.85rem' }}
-                      onClick={async () => {
-                        const input = document.getElementById('watchlist-symbol') as HTMLInputElement;
-                        const symbol = input?.value?.trim().toUpperCase();
-                        if (!symbol) return;
-                        input.disabled = true;
-                        try {
-                          const { addToWatchlist, fetchWatchlist } = await import('../../api/stockApi');
-                          await addToWatchlist(symbol, '');
-                          input.value = '';
-                          const data = await fetchWatchlist();
-                          setDynamicStocks(data);
-                        } finally {
-                          input.disabled = false;
-                        }
-                      }}
-                    >
-                      + 관심종목 추가
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Results Data Table */}
-              <StockTable
-                stocks={filteredStocks}
-                watchlist={watchlist}
-                activeCategory={activeCategory}
-                onToggleWatchlist={onToggleWatchlist}
-                onSelectStock={onSelectStock}
-              />
-            </>
           )}
+
+          {/* 3. Results Data Table */}
+          <StockTable
+            stocks={filteredStocks}
+            watchlist={watchlist}
+            activeCategory={activeCategory}
+            onToggleWatchlist={onToggleWatchlist}
+            onSelectStock={onSelectStock}
+          />
         </div>
       </div>
     </div>

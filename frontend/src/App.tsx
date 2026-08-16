@@ -5,7 +5,7 @@ import { ScreenerView } from './components/Screener/ScreenerView';
 import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
-import { getSavedPresets, saveCustomPreset, deleteCustomPreset } from './utils/storage';
+import { getSavedPresets, saveCustomPreset, deleteCustomPreset, getWatchlist, toggleWatchlist } from './utils/storage';
 import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerNewsCollection } from './api/stockApi';
 import { RefreshCw } from 'lucide-react';
 
@@ -96,8 +96,11 @@ export const App: React.FC = () => {
       setStocks(stkData);
       setNews(newsData);
       setQuantMetrics(metricsData);
-      setWatchlist(wlData.map(w => w.symbol));
-      setLastSyncTime(new Date().toLocaleTimeString());
+      const localWl = getWatchlist();
+      const serverSymbols = wlData && wlData.length > 0 ? wlData.map(w => w.symbol) : [];
+      const mergedWl = Array.from(new Set([...localWl, ...serverSymbols]));
+      setWatchlist(mergedWl);
+      setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (e) {
       console.error('데이터 로드 실패:', e);
     } finally {
@@ -192,6 +195,7 @@ export const App: React.FC = () => {
 
   const handleToggleWatchlist = async (symbol: string) => {
     const isWatch = watchlist.includes(symbol);
+    toggleWatchlist(symbol);
     if (isWatch) {
       const { removeFromWatchlist } = await import('./api/stockApi');
       await removeFromWatchlist(symbol);
@@ -200,7 +204,7 @@ export const App: React.FC = () => {
       const { addToWatchlist } = await import('./api/stockApi');
       const st = stocks.find(s => s.symbol === symbol);
       await addToWatchlist(symbol, st?.name || '');
-      setWatchlist(prev => [...prev, symbol]);
+      setWatchlist(prev => Array.from(new Set([...prev, symbol])));
     }
   };
 
