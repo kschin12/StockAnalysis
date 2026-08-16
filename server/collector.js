@@ -1,6 +1,8 @@
 const { db } = require('./db');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite');
+const path = require('path');
+const fs = require('fs');
 
 function dbRunAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
