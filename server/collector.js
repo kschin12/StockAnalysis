@@ -123,9 +123,14 @@ async function fetchDetailedStockMetrics(symbol) {
       const high52w = parseNum(getVal('highPriceOf52Weeks'));
       const low52w = parseNum(getVal('lowPriceOf52Weeks'));
       
-      const price = parseNum(getVal('openPrice')) || parseNum(getVal('lastClosePrice'));
-      const changeRate = parseNum(data.fluctuationsRatio) || 0;
-      const volume = parseNum(getVal('accumulatedTradingVolume')) || 0;
+      const lastClose = parseNum(getVal('lastClosePrice'));
+      const latestClose = parseNum(data.dealTrendInfos?.[0]?.closePrice) || parseNum(getVal('openPrice')) || lastClose;
+      const realtime = await fetchNaverQuote(symbol);
+      const price = realtime?.price || latestClose || lastClose;
+      const changeRate = (realtime && realtime.changeRate !== undefined && realtime.changeRate !== 0) 
+        ? realtime.changeRate 
+        : (lastClose && price && lastClose > 0 ? Math.round(((price - lastClose) / lastClose) * 10000) / 100 : (realtime?.changeRate || 0));
+      const volume = realtime?.volume || parseNum(getVal('accumulatedTradingVolume')) || 0;
 
       let roe = null;
       if (eps && bps && bps > 0) {
