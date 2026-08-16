@@ -22,15 +22,6 @@ interface ScreenerViewProps {
   onRefreshData?: () => Promise<void>;
 }
 
-const KOSDAQ_SYMBOLS = new Set([
-  '058470', '403870', '247540', '086520', '196170', '277810', '141080', '036930',
-  '041510', '293490', '263750', '039030', '108320', '028300', '214150', '066970',
-  '025980', '357780', '095660', '237690', '084370', '086900', '145020', '328130',
-  '256840', '112040', '067160', '095700', '214370', '140860', '035900', '122870',
-  '091990', '036830', '053800', '048410', '195870', '230360', '298540', '253450',
-  '307950', '090460'
-]);
-
 export const ScreenerView: React.FC<ScreenerViewProps> = ({
   stocks,
   filters,
@@ -69,17 +60,16 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
   // 필터 적용 로직 (카테고리 선택 시 즉시 정렬 및 조건별 상위 추출)
   const getCategoryBaseStocks = () => {
-    // 1. 시장(Market) 분기 필터링
+    // 1. 시장(Market) 분기 필터링 (KOSPI, KOSDAQ, US 정확 분기)
     let pool = stocks;
     if (filters.market === 'US') {
       pool = pool.filter(s => s.market === 'US' || s.currency === 'USD');
-    } else if (filters.market === 'KRX' || filters.market === 'KOSPI' || filters.market === 'KOSDAQ') {
-      pool = pool.filter(s => s.market === 'KRX' || s.currency === 'KRW');
-      if (filters.market === 'KOSDAQ') {
-        pool = pool.filter(s => KOSDAQ_SYMBOLS.has(s.symbol) || s.sector?.includes('코스닥') || s.name?.includes('스팩'));
-      } else if (filters.market === 'KOSPI') {
-        pool = pool.filter(s => !KOSDAQ_SYMBOLS.has(s.symbol));
-      }
+    } else if (filters.market === 'KOSPI') {
+      pool = pool.filter(s => s.market === 'KOSPI');
+    } else if (filters.market === 'KOSDAQ') {
+      pool = pool.filter(s => s.market === 'KOSDAQ');
+    } else if (filters.market === 'KRX') {
+      pool = pool.filter(s => s.market === 'KOSPI' || s.market === 'KOSDAQ' || s.currency === 'KRW');
     }
 
     if (activeCategory === 'watchlist') {

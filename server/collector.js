@@ -38,6 +38,7 @@ async function fetchNaverQuote(symbol) {
     const price = parseFloat(String(s.closePrice).replace(/,/g, '')) || 0;
     const changeRate = parseFloat(s.fluctuationsRatio) || 0;
     const volume = parseInt(String(s.accumulatedTradingVolume).replace(/,/g, ''), 10) || 0;
+    const market = s.stockExchangeType?.name || (s.stockExchangeType?.code === 'KQ' ? 'KOSDAQ' : 'KOSPI');
 
     return {
       symbol,
@@ -45,7 +46,7 @@ async function fetchNaverQuote(symbol) {
       price,
       changeRate,
       volume,
-      market: 'KRX',
+      market,
       currency: 'KRW'
     };
   } catch (err) {
@@ -153,7 +154,7 @@ async function fetchDetailedStockMetrics(symbol) {
       return {
         symbol,
         name: data.stockName || symbol,
-        market: 'KRX',
+        market: realtime?.market || 'KOSPI',
         currency: 'KRW',
         price,
         changeRate,
@@ -478,7 +479,7 @@ async function scrapeNaverRankings(category, sosok = 0, targetCount = 50) {
             const href = aTag.first().attr('href') || '';
             const match = href.match(/code=([0-9A-Za-z]+)/);
             if (match && name) {
-              stocks.push({ symbol: match[1], name, rank: stocks.length + 1 });
+              stocks.push({ symbol: match[1], name, market: sosok === 0 ? 'KOSPI' : 'KOSDAQ', rank: stocks.length + 1 });
             }
           }
         });
@@ -503,7 +504,7 @@ async function scrapeNaverRankings(category, sosok = 0, targetCount = 50) {
             const href = aTag.first().attr('href') || '';
             const match = href.match(/code=([0-9A-Za-z]+)/);
             if (match && name) {
-              stocks.push({ symbol: match[1], name, rank: stocks.length + 1 });
+              stocks.push({ symbol: match[1], name, market: sosok === 0 ? 'KOSPI' : 'KOSDAQ', rank: stocks.length + 1 });
             }
           }
         });
@@ -618,10 +619,13 @@ async function runDynamicCollection(category, market = 'ALL') {
       for (const st of krList) {
         const q = await fetchDetailedStockMetrics(st.symbol) || await fetchNaverQuote(st.symbol);
         if (q && q.price > 0) {
+          const stockMarket = sosok === 0 ? 'KOSPI' : 'KOSDAQ';
           await dbRunAsync(
             `INSERT INTO stocks (symbol, name, market, assetType, price, changeRate, volume, marketCap, per, pbr, roe, dividendYield, high52w, low52w, currency, updated_at) 
-             VALUES (?, ?, 'KRX', 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'KRW', datetime('now', 'localtime'))
+             VALUES (?, ?, ?, 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'KRW', datetime('now', 'localtime'))
              ON CONFLICT(symbol) DO UPDATE SET 
+             name = COALESCE(excluded.name, stocks.name),
+             market = excluded.market,
              price = excluded.price, 
              changeRate = excluded.changeRate, 
              volume = excluded.volume, 
@@ -636,6 +640,7 @@ async function runDynamicCollection(category, market = 'ALL') {
             [
               st.symbol,
               st.name,
+              stockMarket,
               q.price,
               q.changeRate,
               q.volume,
@@ -884,10 +889,10 @@ async function refreshAllRankingsAndSave(customConfig = null) {
     ]);
     
     // 공식 코스피 200 종목 중 시총 상위 N% 추출
-    officialKospi200.slice(0, kospiMcCount).forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피200 시총상위'));
-    kospiVol.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 거래량상위'));
-    kospiRise.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 급등주'));
-    kospiFall.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 급락주'));
+    officialKospi200.slice(0, kospiMcCount).forEach(s => addSymbol(s.symbol, s.name, 'KOSPI', '코스피200 시총상위'));
+    kospiVol.forEach(s => addSymbol(s.symbol, s.name, 'KOSPI', '코스피200 거래량상위'));
+    kospiRise.forEach(s => addSymbol(s.symbol, s.name, 'KOSPI', '코스피200 급등주'));
+    kospiFall.forEach(s => addSymbol(s.symbol, s.name, 'KOSPI', '코스피200 급락주'));
 
     // 2. 공식 코스닥 150 유니버스 풀 (150개) 및 랭킹 크롤링
     const kosdaqMcCount = Math.round((150 * (cfg.kosdaqMarketCapPercent || 30)) / 100);
@@ -900,10 +905,10 @@ async function refreshAllRankingsAndSave(customConfig = null) {
     ]);
     
     // 공식 코스닥 150 종목 중 시총 상위 N% 추출
-    officialKosdaq150.slice(0, kosdaqMcCount).forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥150 시총상위'));
-    kosdaqVol.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 거래량상위'));
-    kosdaqRise.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 급등주'));
-    kosdaqFall.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 급락주'));
+    officialKosdaq150.slice(0, kosdaqMcCount).forEach(s => addSymbol(s.symbol, s.name, 'KOSDAQ', '코스닥150 시총상위'));
+    kosdaqVol.forEach(s => addSymbol(s.symbol, s.name, 'KOSDAQ', '코스닥150 거래량상위'));
+    kosdaqRise.forEach(s => addSymbol(s.symbol, s.name, 'KOSDAQ', '코스닥150 급등주'));
+    kosdaqFall.forEach(s => addSymbol(s.symbol, s.name, 'KOSDAQ', '코스닥150 급락주'));
 
     // 3. 공식 S&P 500 / NASDAQ 100 유니버스 풀 및 랭킹 크롤링
     const usMcCount = Math.round((100 * (cfg.usMarketCapPercent || 30)) / 100);
@@ -915,16 +920,16 @@ async function refreshAllRankingsAndSave(customConfig = null) {
       fetchYahooScreener('day_losers').then(list => list.slice(0, cfg.usFallCount || 20))
     ]);
     
-    // 공식 S&P 500 상위 종목 추출
+    // 공식 S&P 500 / NASDAQ 100 상위 종목 추출
     (officialUs500.length > 0 ? officialUs500.slice(0, usMcCount) : await fetchUSMarketCapRankings().then(l => l.slice(0, usMcCount)))
-      .forEach(s => addSymbol(s.symbol, s.name, 'US', 'S&P500 시총상위'));
-    usVol.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 거래량상위'));
+      .forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 공식지수 시총상위'));
+    usVol.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 공식지수 거래량상위'));
     usRise.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 급등주'));
     usFall.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 급락주'));
 
     // 4. 사용자 관심종목(Watchlist) 추가
     const watchRows = await dbAllAsync(`SELECT symbol, name FROM watchlist`);
-    watchRows.forEach(w => addSymbol(w.symbol, w.name, /^[0-9]{6}$/.test(w.symbol) ? 'KRX' : 'US', '관심종목'));
+    watchRows.forEach(w => addSymbol(w.symbol, w.name, /^[0-9]{6}$/.test(w.symbol) ? 'KOSPI' : 'US', '관심종목'));
 
     const allSelectedList = Array.from(selectedSymbolMap.values());
     console.log(`📊 합집합 필터링 완료: 총 ${allSelectedList.length}개 유니버스 종목 선정 (중복 제거됨)`);
@@ -943,8 +948,9 @@ async function refreshAllRankingsAndSave(customConfig = null) {
       const chunk = allSelectedList.slice(i, i + chunkSize);
       await Promise.allSettled(chunk.map(async (item) => {
         try {
+          const isKorean = item.market === 'KOSPI' || item.market === 'KOSDAQ' || item.market === 'KRX';
           const q = await fetchDetailedStockMetrics(item.symbol) || 
-            (item.market === 'KRX' ? await fetchNaverQuote(item.symbol) : await fetchYahooQuote(item.symbol));
+            (isKorean ? await fetchNaverQuote(item.symbol) : await fetchYahooQuote(item.symbol));
           
           if (q && q.price > 0) {
             await dbRunAsync(
@@ -952,6 +958,7 @@ async function refreshAllRankingsAndSave(customConfig = null) {
                VALUES (?, ?, ?, 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
                ON CONFLICT(symbol) DO UPDATE SET 
                name = COALESCE(excluded.name, stocks.name),
+               market = excluded.market,
                price = excluded.price, 
                changeRate = excluded.changeRate, 
                volume = excluded.volume, 
@@ -977,7 +984,7 @@ async function refreshAllRankingsAndSave(customConfig = null) {
                 q.dividendYield || null,
                 q.high52w || null,
                 q.low52w || null,
-                item.market === 'KRX' ? 'KRW' : 'USD'
+                isKorean ? 'KRW' : 'USD'
               ]
             );
           }
