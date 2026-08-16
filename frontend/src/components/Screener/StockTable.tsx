@@ -220,7 +220,6 @@ export const StockTable: React.FC<StockTableProps> = ({
             {paginatedStocks.length > 0 ? (
               paginatedStocks.map((stk, idx) => {
                 const isWatch = watchlist.includes(stk.symbol);
-                const isUp = stk.changeRate >= 0;
                 const rankNum = startIndex + idx + 1;
                 const hasWarnings = stk.warningBadges && stk.warningBadges.length > 0;
                 const hasMomentum = stk.momentumBadges && stk.momentumBadges.length > 0;
@@ -280,28 +279,36 @@ export const StockTable: React.FC<StockTableProps> = ({
 
                     {/* Price */}
                     <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 600 }}>
-                      {stk.currency === 'KRW' ? `${stk.price.toLocaleString()}원` : `$${stk.price.toFixed(2)}`}
+                      {stk.price !== null && stk.price !== undefined
+                        ? stk.currency === 'KRW'
+                          ? `₩${stk.price.toLocaleString()}`
+                          : `$${stk.price.toFixed(2)}`
+                        : '-'}
                     </td>
 
                     {/* Change Rate */}
-                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 700, color: isUp ? 'var(--color-up)' : 'var(--color-down)' }}>
-                      {isUp ? `+${stk.changeRate.toFixed(2)}%` : `${stk.changeRate.toFixed(2)}%`}
+                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 700, color: (stk.changeRate || 0) >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
+                      {stk.changeRate !== null && stk.changeRate !== undefined
+                        ? (stk.changeRate >= 0 ? `+${stk.changeRate.toFixed(2)}%` : `${stk.changeRate.toFixed(2)}%`)
+                        : '-'}
                     </td>
 
                     {/* Volume */}
                     <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>
-                      {stk.volume ? stk.volume.toLocaleString() : '-'}
+                      {stk.volume !== null && stk.volume !== undefined ? stk.volume.toLocaleString() : '-'}
                     </td>
 
                     {/* Market Cap */}
                     <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>
-                      {stk.currency === 'KRW'
-                        ? stk.marketCap >= 10000
-                          ? `${(stk.marketCap / 10000).toFixed(1)}조`
-                          : `${stk.marketCap.toLocaleString()}억`
-                        : stk.marketCap >= 1000
-                          ? `$${(stk.marketCap / 1000).toFixed(1)}B`
-                          : `$${stk.marketCap.toLocaleString()}M`}
+                      {stk.marketCap !== null && stk.marketCap !== undefined
+                        ? stk.currency === 'KRW'
+                          ? stk.marketCap >= 10000
+                            ? `${(stk.marketCap / 10000).toFixed(1)}조`
+                            : `${stk.marketCap.toLocaleString()}억`
+                          : stk.marketCap >= 1000
+                            ? `$${(stk.marketCap / 1000).toFixed(1)}B`
+                            : `$${stk.marketCap.toLocaleString()}M`
+                        : '-'}
                     </td>
 
                     {/* PER */}
