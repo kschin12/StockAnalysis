@@ -747,10 +747,97 @@ async function runDynamicCollection(category, market = 'ALL') {
   };
 }
 
-// 13. 전 시장 유니버스 기반 정밀 수집 및 DB 정돈 (사용자 정의 조건 적용)
+// 9-1. 공식 코스피 200 편입 종목 200개 크롤링 (네이버 증권 공식 지수 페이지)
+async function fetchOfficialKospi200() {
+  const list = [];
+  const promises = [];
+  for (let page = 1; page <= 20; page++) {
+    promises.push((async () => {
+      try {
+        const url = `https://finance.naver.com/sise/entryJongmok.naver?itiType=0&gubun=1&page=${page}`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
+        if (!res.ok) return [];
+        const buf = await res.arrayBuffer();
+        const html = iconv.decode(Buffer.from(buf), 'euc-kr');
+        const $ = cheerio.load(html);
+        const pageItems = [];
+        $('td.ctg a').each((i, el) => {
+          const name = $(el).text().trim();
+          const href = $(el).attr('href') || '';
+          const match = href.match(/code=([0-9A-Za-z]+)/);
+          if (match && name) pageItems.push({ symbol: match[1], name, market: 'KRX' });
+        });
+        return pageItems;
+      } catch {
+        return [];
+      }
+    })());
+  }
+  const results = await Promise.allSettled(promises);
+  for (const r of results) {
+    if (r.status === 'fulfilled') list.push(...r.value);
+  }
+  return list.slice(0, 200);
+}
+
+// 9-2. 공식 코스닥 150 편입 종목 150개 크롤링
+async function fetchOfficialKosdaq150() {
+  const list = [];
+  for (let page = 1; page <= 3; page++) {
+    try {
+      const url = `https://finance.naver.com/sise/sise_market_sum.naver?sosok=1&page=${page}`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
+      if (!res.ok) continue;
+      const buf = await res.arrayBuffer();
+      const html = iconv.decode(Buffer.from(buf), 'euc-kr');
+      const $ = cheerio.load(html);
+      $('table.type_2 tbody tr').each((i, el) => {
+        const aTag = $(el).find('a[href*="code="]');
+        if (aTag.length) {
+          const name = aTag.first().text().trim();
+          const href = aTag.first().attr('href') || '';
+          const match = href.match(/code=([0-9A-Za-z]+)/);
+          if (match && name) {
+            list.push({ symbol: match[1], name, market: 'KRX' });
+          }
+        }
+      });
+      if (list.length >= 150) break;
+    } catch {}
+  }
+  return list.slice(0, 150);
+}
+
+// 9-3. 공식 S&P 500 / NASDAQ 100 미국 공식 편입 종목 크롤링
+async function fetchOfficialUSIndices() {
+  try {
+    const res = await fetch('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(5000)
+    });
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const list = [];
+    $('#constituents tbody tr').each((i, el) => {
+      const tds = $(el).find('td');
+      if (tds.length >= 2) {
+        const symbol = $(tds[0]).text().trim();
+        const name = $(tds[1]).text().trim();
+        if (symbol && name) {
+          list.push({ symbol, name, market: 'US' });
+        }
+      }
+    });
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+// 13. 전 시장 유니버스 기반 정밀 수집 및 DB 정돈 (새벽 6시 공식 지수 풀 기반 추출)
 async function refreshAllRankingsAndSave(customConfig = null) {
   const cfg = customConfig ? { ...getCollectorSettings(), ...customConfig } : getCollectorSettings();
-  console.log('🔄 [Universe Collector] 맞춤 수집 기준 시작:', JSON.stringify(cfg));
+  console.log('🔄 [Universe Collector] 6:00 AM 공식 지수 기반 맞춤 수집 시작:', JSON.stringify(cfg));
 
   try {
     const selectedSymbolMap = new Map(); // symbol -> { symbol, name, market, originReasons: Set }
@@ -764,44 +851,51 @@ async function refreshAllRankingsAndSave(customConfig = null) {
       }
     };
 
-    // 1. 코스피 200 유니버스 수집 (시총 30%, 거래량 30%, 급등 20, 급락 20)
+    // 1. 공식 코스피 200 유니버스 풀 (200개) 및 랭킹 크롤링
     const kospiMcCount = Math.round((200 * (cfg.kospiMarketCapPercent || 30)) / 100);
     const kospiVolCount = Math.round((200 * (cfg.kospiVolumePercent || 30)) / 100);
-    const [kospiMc, kospiVol, kospiRise, kospiFall] = await Promise.all([
-      scrapeNaverRankings('market_cap', 0, kospiMcCount),
+    const [officialKospi200, kospiVol, kospiRise, kospiFall] = await Promise.all([
+      fetchOfficialKospi200(),
       scrapeNaverRankings('volume', 0, kospiVolCount),
       scrapeNaverRankings('rise', 0, cfg.kospiRiseCount || 20),
       scrapeNaverRankings('fall', 0, cfg.kospiFallCount || 20)
     ]);
-    kospiMc.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 시총상위'));
+    
+    // 공식 코스피 200 종목 중 시총 상위 N% 추출
+    officialKospi200.slice(0, kospiMcCount).forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피200 시총상위'));
     kospiVol.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 거래량상위'));
     kospiRise.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 급등주'));
     kospiFall.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 급락주'));
 
-    // 2. 코스닥 150 유니버스 수집 (시총 30%, 거래량 30%, 급등 20, 급락 20)
+    // 2. 공식 코스닥 150 유니버스 풀 (150개) 및 랭킹 크롤링
     const kosdaqMcCount = Math.round((150 * (cfg.kosdaqMarketCapPercent || 30)) / 100);
     const kosdaqVolCount = Math.round((150 * (cfg.kosdaqVolumePercent || 30)) / 100);
-    const [kosdaqMc, kosdaqVol, kosdaqRise, kosdaqFall] = await Promise.all([
-      scrapeNaverRankings('market_cap', 1, kosdaqMcCount),
+    const [officialKosdaq150, kosdaqVol, kosdaqRise, kosdaqFall] = await Promise.all([
+      fetchOfficialKosdaq150(),
       scrapeNaverRankings('volume', 1, kosdaqVolCount),
       scrapeNaverRankings('rise', 1, cfg.kosdaqRiseCount || 20),
       scrapeNaverRankings('fall', 1, cfg.kosdaqFallCount || 20)
     ]);
-    kosdaqMc.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 시총상위'));
+    
+    // 공식 코스닥 150 종목 중 시총 상위 N% 추출
+    officialKosdaq150.slice(0, kosdaqMcCount).forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥150 시총상위'));
     kosdaqVol.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 거래량상위'));
     kosdaqRise.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 급등주'));
     kosdaqFall.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 급락주'));
 
-    // 3. 미국 S&P 500 / NASDAQ 100 유니버스 수집
+    // 3. 공식 S&P 500 / NASDAQ 100 유니버스 풀 및 랭킹 크롤링
     const usMcCount = Math.round((100 * (cfg.usMarketCapPercent || 30)) / 100);
     const usVolCount = Math.round((100 * (cfg.usVolumePercent || 30)) / 100);
-    const [usMc, usVol, usRise, usFall] = await Promise.all([
-      fetchUSMarketCapRankings().then(list => list.slice(0, usMcCount)),
+    const [officialUs500, usVol, usRise, usFall] = await Promise.all([
+      fetchOfficialUSIndices(),
       fetchYahooScreener('most_actives').then(list => list.slice(0, usVolCount)),
       fetchYahooScreener('day_gainers').then(list => list.slice(0, cfg.usRiseCount || 20)),
       fetchYahooScreener('day_losers').then(list => list.slice(0, cfg.usFallCount || 20))
     ]);
-    usMc.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 시총상위'));
+    
+    // 공식 S&P 500 상위 종목 추출
+    (officialUs500.length > 0 ? officialUs500.slice(0, usMcCount) : await fetchUSMarketCapRankings().then(l => l.slice(0, usMcCount)))
+      .forEach(s => addSymbol(s.symbol, s.name, 'US', 'S&P500 시총상위'));
     usVol.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 거래량상위'));
     usRise.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 급등주'));
     usFall.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 급락주'));
