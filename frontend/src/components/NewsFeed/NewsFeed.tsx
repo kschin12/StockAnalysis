@@ -18,7 +18,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   stocks = [],
   onSelectStock
 }) => {
-  const [filterType, setFilterType] = useState<'ALL' | 'IMPORTANT' | 'NEWS' | 'DISCLOSURE'>('ALL');
+  const [filterType, setFilterType] = useState<'NEWS' | 'DISCLOSURE' | 'IMPORTANT' | 'ALL'>('NEWS');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 9; // 한 페이지에 9개씩
 
@@ -268,32 +268,32 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
           {/* Filter Buttons */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <button
-              onClick={() => setFilterType('ALL')}
-              className={`btn ${filterType === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+              onClick={() => setFilterType('NEWS')}
+              className={`btn ${filterType === 'NEWS' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.78rem', padding: '6px 14px', fontWeight: 700 }}
             >
-              전체 피드
+              📰 최신 뉴스
+            </button>
+            <button
+              onClick={() => setFilterType('DISCLOSURE')}
+              className={`btn ${filterType === 'DISCLOSURE' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.78rem', padding: '6px 14px', fontWeight: 700 }}
+            >
+              📋 DART 전자공시
             </button>
             <button
               onClick={() => setFilterType('IMPORTANT')}
               className={`btn ${filterType === 'IMPORTANT' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              중요 뉴스&공시만
+              ⭐ 핵심 중요만
             </button>
             <button
-              onClick={() => setFilterType('NEWS')}
-              className={`btn ${filterType === 'NEWS' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setFilterType('ALL')}
+              className={`btn ${filterType === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              뉴스만
-            </button>
-            <button
-              onClick={() => setFilterType('DISCLOSURE')}
-              className={`btn ${filterType === 'DISCLOSURE' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
-            >
-              DART 공시만
+              전체 보기
             </button>
           </div>
         </div>

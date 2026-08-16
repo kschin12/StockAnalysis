@@ -47,6 +47,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   const [activeBadgeTooltip, setActiveBadgeTooltip] = useState<ActiveTooltipState | null>(null);
   const [isSearchingNews, setIsSearchingNews] = useState<boolean>(false);
   const [searchedNews, setSearchedNews] = useState<NewsItem[] | null>(null);
+  const [chartNewsTab, setChartNewsTab] = useState<'NEWS' | 'DISCLOSURE' | 'ALL'>('NEWS');
 
   // 종목 변경 시 검색 뉴스 초기화
   useEffect(() => {
@@ -82,7 +83,14 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
 
   const relatedNews = searchedNews !== null 
     ? searchedNews.slice(0, 10) 
-    : news.filter(n => n.symbol === stock.symbol).slice(0, 5);
+    : news.filter(n => n.symbol === stock.symbol).slice(0, 8);
+  const newsOnly = relatedNews.filter(n => !n.isDisclosure);
+  const disclosureOnly = relatedNews.filter(n => n.isDisclosure);
+  const displayedRelatedNews = chartNewsTab === 'NEWS' 
+    ? newsOnly 
+    : chartNewsTab === 'DISCLOSURE' 
+      ? disclosureOnly 
+      : relatedNews;
   const isUp = stock.changeRate >= 0;
 
   const handleSearchNews = async () => {
@@ -661,10 +669,64 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
         </div>
 
         <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Newspaper size={18} color="var(--color-brand)" />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{stock.name} 관련 뉴스 및 공시</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Newspaper size={18} color="var(--color-brand)" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{stock.name} 관련 소식</h3>
+              </div>
+
+              {/* 뉴스와 공시 분리 탭 (기본값: 최신 뉴스) */}
+              <div style={{ display: 'flex', background: 'var(--bg-input)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <button
+                  onClick={() => setChartNewsTab('NEWS')}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '0.78rem',
+                    fontWeight: chartNewsTab === 'NEWS' ? 700 : 500,
+                    borderRadius: '4px',
+                    background: chartNewsTab === 'NEWS' ? 'var(--color-brand)' : 'transparent',
+                    color: chartNewsTab === 'NEWS' ? '#fff' : 'var(--text-secondary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  📰 최신 뉴스 ({newsOnly.length})
+                </button>
+                <button
+                  onClick={() => setChartNewsTab('DISCLOSURE')}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '0.78rem',
+                    fontWeight: chartNewsTab === 'DISCLOSURE' ? 700 : 500,
+                    borderRadius: '4px',
+                    background: chartNewsTab === 'DISCLOSURE' ? 'var(--color-brand)' : 'transparent',
+                    color: chartNewsTab === 'DISCLOSURE' ? '#fff' : 'var(--text-secondary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  📋 DART 공시 ({disclosureOnly.length})
+                </button>
+                <button
+                  onClick={() => setChartNewsTab('ALL')}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '0.78rem',
+                    fontWeight: chartNewsTab === 'ALL' ? 700 : 500,
+                    borderRadius: '4px',
+                    background: chartNewsTab === 'ALL' ? 'var(--color-brand)' : 'transparent',
+                    color: chartNewsTab === 'ALL' ? '#fff' : 'var(--text-secondary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  전체 ({relatedNews.length})
+                </button>
+              </div>
             </div>
 
             <button
@@ -688,8 +750,8 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {relatedNews.length > 0 ? (
-              relatedNews.map(n => (
+            {displayedRelatedNews.length > 0 ? (
+              displayedRelatedNews.map(n => (
                 <div
                   key={n.id}
                   style={{
@@ -726,7 +788,11 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
               ))
             ) : (
               <div style={{ padding: '30px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                최근 7일간 등록된 중요 뉴스/공시가 없습니다.
+                {chartNewsTab === 'DISCLOSURE' 
+                  ? '최근 7일간 등록된 중요 DART 공시가 없습니다.'
+                  : chartNewsTab === 'NEWS'
+                    ? '최근 7일간 등록된 중요 뉴스가 없습니다.'
+                    : '최근 7일간 등록된 중요 뉴스/공시가 없습니다.'}
               </div>
             )}
           </div>
