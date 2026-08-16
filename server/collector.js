@@ -808,8 +808,23 @@ async function fetchOfficialKosdaq150() {
   return list.slice(0, 150);
 }
 
-// 9-3. 공식 S&P 500 / NASDAQ 100 미국 공식 편입 종목 크롤링
+// 9-3. 공식 나스닥 100 (NASDAQ 100 / QQQ) 100개 핵심 종목 목록
+const OFFICIAL_NASDAQ_100 = [
+  'AAPL', 'NVDA', 'MSFT', 'AMZN', 'GOOGL', 'GOOG', 'META', 'TSLA', 'AVGO', 'COST',
+  'ASML', 'NFLX', 'AMD', 'AZN', 'TMUS', 'LIN', 'CSCO', 'ADBE', 'PEP', 'QCOM',
+  'TXN', 'INTU', 'AMGN', 'ISRG', 'HON', 'AMAT', 'BKNG', 'CMCSA', 'VRTX', 'PANW',
+  'LRCX', 'ADI', 'MU', 'REGN', 'MDLZ', 'KLAC', 'SNPS', 'CDNS', 'CRWD', 'PYPL',
+  'MELI', 'MAR', 'ORLY', 'CSX', 'CTAS', 'NXPI', 'PCAR', 'ROP', 'MNST', 'ADSK',
+  'FTNT', 'WDAY', 'AEP', 'CPRT', 'PAYX', 'ROST', 'KDP', 'CHTR', 'MCHP', 'DXCM',
+  'FAST', 'ODFL', 'KHC', 'GEHC', 'EA', 'LULU', 'VRSK', 'CTSH', 'IDXX', 'EXC',
+  'BKR', 'BIIB', 'XEL', 'ON', 'CSGP', 'CDW', 'FANG', 'ANSS', 'DLTR', 'TEAM',
+  'TTD', 'GFS', 'MDB', 'ZS', 'WBD', 'ILMN', 'SIRI', 'ARM', 'DASH', 'PDD',
+  'ABNB', 'CEG', 'MRNA', 'CCEP', 'TTWO', 'AXON', 'APP', 'PLTR', 'SMCI', 'COHR'
+];
+
+// 9-4. 공식 S&P 500 (503개) + NASDAQ 100 (100개) 미국 공식 편입 종목 크롤링 및 결합 (총 517개 고유 풀)
 async function fetchOfficialUSIndices() {
+  const combinedMap = new Map();
   try {
     const res = await fetch('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', {
       headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -817,21 +832,28 @@ async function fetchOfficialUSIndices() {
     });
     const html = await res.text();
     const $ = cheerio.load(html);
-    const list = [];
     $('#constituents tbody tr').each((i, el) => {
       const tds = $(el).find('td');
       if (tds.length >= 2) {
         const symbol = $(tds[0]).text().trim();
         const name = $(tds[1]).text().trim();
         if (symbol && name) {
-          list.push({ symbol, name, market: 'US' });
+          combinedMap.set(symbol, { symbol, name, market: 'US' });
         }
       }
     });
-    return list;
-  } catch {
-    return [];
+  } catch (e) {
+    console.warn('[Collector] S&P 500 fetch failed, using fallback:', e.message);
   }
+
+  // 나스닥 100 고유 종목 결합 (S&P 500 미포함 나스닥100 전용 종목 약 14개 추가 결합)
+  OFFICIAL_NASDAQ_100.forEach(sym => {
+    if (!combinedMap.has(sym)) {
+      combinedMap.set(sym, { symbol: sym, name: sym, market: 'US' });
+    }
+  });
+
+  return Array.from(combinedMap.values());
 }
 
 // 13. 전 시장 유니버스 기반 정밀 수집 및 DB 정돈 (새벽 6시 공식 지수 풀 기반 추출)
