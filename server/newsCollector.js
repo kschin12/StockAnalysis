@@ -257,6 +257,46 @@ async function fetchLiveKoreanNews() {
         isDisclosure: 0,
         importance: imp
       });
+    }
+
+    if (parsedArticles.length > 0) {
+      await new Promise(resolve => {
+        db.serialize(() => {
+          const stmt = db.prepare(`
+            INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const a of parsedArticles) {
+            stmt.run([a.id, a.symbol, a.companyName, a.title, a.summary, a.source, a.date, a.url, a.sentiment, 0, a.importance]);
+            count++;
+          }
+          stmt.finalize(() => resolve());
+        });
+      });
+    }
+  } catch (err) {
+    console.warn('[Live Korean News] Fetch error:', err.message);
+  }
+
+  return count;
+}
+
+async function translateToKorean(text) {
+  if (!text) return text;
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return text;
+    const json = await res.json();
+    if (json && json[0]) {
+      return json[0].map(item => item[0]).join('');
+    }
+    return text;
+  } catch {
+    return text;
+  }
+}
+
 // 2. 미국 빅테크 실시간 뉴스 수집 (Yahoo Finance Direct RSS 병렬 수집)
 async function fetchLiveUsNews() {
   let count = 0;
