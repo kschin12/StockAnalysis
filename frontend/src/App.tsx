@@ -163,7 +163,11 @@ export const App: React.FC = () => {
       }).catch((e) => console.warn('On-visit news sync error:', e));
     }
 
-    // 3) ⏱️ 실시간 시세 동기화: 사용자가 접속해 있는 동안 1분(60초)마다 자동 갱신
+    // 3) ⏱️ 실시간 시세 동기화: 첫 화면 접속 시 즉시 1회 실행 + 접속 중 1분(60초)마다 자동 갱신
+    triggerRealtimeCollection()
+      .then(() => loadAllData())
+      .catch((e) => console.warn('Initial price sync error:', e));
+
     const priceInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         triggerRealtimeCollection()
@@ -271,7 +275,7 @@ export const App: React.FC = () => {
       }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span>로컬 DB: <strong style={{ color: '#fff' }}>data/stocks.db ({stocks.length}개 종목)</strong></span>
-          <span>API 서버: <strong style={{ color: 'var(--color-up)' }}>Connected (Port 5000)</strong></span>
+          <span>API 서버: <strong style={{ color: 'var(--color-up)' }}>Connected (Online)</strong></span>
           {lastSyncTime && <span>마지막 동기화: {lastSyncTime}</span>}
         </div>
 
