@@ -365,6 +365,7 @@ export const App: React.FC = () => {
                 onResetFilters={handleResetFilters}
                 onToggleWatchlist={handleToggleWatchlist}
                 onSelectStock={handleSelectStock}
+                onRefreshData={loadAllData}
               />
             )}
 

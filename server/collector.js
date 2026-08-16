@@ -448,37 +448,64 @@ async function fetchUSMarketCapRankings() {
   return results.filter(Boolean);
 }
 
-// 9. 네이버 증권 국내 랭킹 크롤링
-async function scrapeNaverRankings(category) {
-  let url = '';
-  if (category === 'market_cap') url = 'https://finance.naver.com/sise/sise_market_sum.naver';
-  else if (category === 'volume') url = 'https://finance.naver.com/sise/sise_quant.naver';
-  else if (category === 'rise') url = 'https://finance.naver.com/sise/sise_rise.naver';
-  else return [];
-
+// 9. 네이버 증권 국내 랭킹 크롤링 (시장별 & 카테고리별 정밀 수집)
+// sosok: 0 (KOSPI), 1 (KOSDAQ)
+// category: 'market_cap' | 'volume' | 'rise' | 'fall'
+async function scrapeNaverRankings(category, sosok = 0, targetCount = 50) {
+  const stocks = [];
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    const buffer = await res.arrayBuffer();
-    const html = iconv.decode(Buffer.from(buffer), 'euc-kr');
-    const $ = cheerio.load(html);
-    
-    const stocks = [];
-    $('table.type_2 tbody tr').each((i, el) => {
-      if ($(el).attr('onmouseover')) {
-        const aTag = $(el).find('a.tltle');
-        if (aTag.length) {
-          const name = aTag.text().trim();
-          const href = aTag.attr('href');
-          const symbol = href.split('code=')[1];
-          stocks.push({ symbol, name });
-        }
+    if (category === 'market_cap') {
+      // 1페이지당 50개 종목 (KOSPI 200은 4페이지, KOSDAQ 150은 3페이지)
+      const pagesToFetch = Math.ceil(targetCount / 50);
+      for (let page = 1; page <= pagesToFetch; page++) {
+        const url = `https://finance.naver.com/sise/sise_market_sum.naver?sosok=${sosok}&page=${page}`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000) });
+        if (!res.ok) continue;
+        const buffer = await res.arrayBuffer();
+        const html = iconv.decode(Buffer.from(buffer), 'euc-kr');
+        const $ = cheerio.load(html);
+        $('table.type_2 tbody tr').each((i, el) => {
+          const aTag = $(el).find('a[href*="code="]');
+          if (aTag.length) {
+            const name = aTag.first().text().trim();
+            const href = aTag.first().attr('href') || '';
+            const match = href.match(/code=([0-9A-Za-z]+)/);
+            if (match && name) {
+              stocks.push({ symbol: match[1], name, rank: stocks.length + 1 });
+            }
+          }
+        });
+        if (stocks.length >= targetCount) break;
       }
-    });
-    return stocks.slice(0, 40);
+    } else {
+      let url = '';
+      if (category === 'volume') url = `https://finance.naver.com/sise/sise_quant.naver?sosok=${sosok}`;
+      else if (category === 'rise') url = `https://finance.naver.com/sise/sise_rise.naver?sosok=${sosok}`;
+      else if (category === 'fall') url = `https://finance.naver.com/sise/sise_fall.naver?sosok=${sosok}`;
+      else return [];
+
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const buffer = await res.arrayBuffer();
+        const html = iconv.decode(Buffer.from(buffer), 'euc-kr');
+        const $ = cheerio.load(html);
+        $('table tbody tr').each((i, el) => {
+          const aTag = $(el).find('a[href*="code="]');
+          if (aTag.length) {
+            const name = aTag.first().text().trim();
+            const href = aTag.first().attr('href') || '';
+            const match = href.match(/code=([0-9A-Za-z]+)/);
+            if (match && name) {
+              stocks.push({ symbol: match[1], name, rank: stocks.length + 1 });
+            }
+          }
+        });
+      }
+    }
   } catch (err) {
-    console.error(`[Collector] Failed to scrape ${category}:`, err.message);
-    return [];
+    console.error(`[Collector] Failed to scrape ${category} sosok=${sosok}:`, err.message);
   }
+  return stocks.slice(0, targetCount);
 }
 
 // 10. 단일 종목 실시간 동기화 (관심종목 등록 시 자동 호출)
@@ -526,7 +553,50 @@ async function syncSingleStock(symbol, customName = '') {
   return false;
 }
 
-// 11. 동적 수집 마스터 실행 함수 (한국 + 미국 통합 지원)
+// 11. 수집 설정 기본값 관리 (KOSPI 200, KOSDAQ 150, S&P 500, NASDAQ 100 기준)
+const DEFAULT_COLLECTOR_SETTINGS = {
+  kospiMarketCapPercent: 30, // 코스피 200 중 시총 상위 30% (60개)
+  kospiVolumePercent: 30,    // 코스피 거래량 상위 30% (60개)
+  kospiRiseCount: 20,        // 코스피 급등 20개
+  kospiFallCount: 20,        // 코스피 급락 20개
+  kosdaqMarketCapPercent: 30, // 코스닥 150 중 시총 상위 30% (45개)
+  kosdaqVolumePercent: 30,    // 코스닥 거래량 상위 30% (45개)
+  kosdaqRiseCount: 20,        // 코스닥 급등 20개
+  kosdaqFallCount: 20,        // 코스닥 급락 20개
+  usMarketCapPercent: 30,     // 미국 주요 리더 중 시총 상위 30% (30개)
+  usVolumePercent: 30,        // 미국 거래량 상위 30% (30개)
+  usRiseCount: 20,            // 미국 급등 20개
+  usFallCount: 20             // 미국 급락 20개
+};
+
+const SETTINGS_FILE_PATH = path.join(__dirname, '..', 'data', 'collector_settings.json');
+
+function getCollectorSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE_PATH)) {
+      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE_PATH, 'utf-8'));
+      return { ...DEFAULT_COLLECTOR_SETTINGS, ...data };
+    }
+  } catch (e) {
+    console.warn('[Collector] Failed to read collector settings:', e.message);
+  }
+  return DEFAULT_COLLECTOR_SETTINGS;
+}
+
+function saveCollectorSettings(newSettings) {
+  try {
+    const merged = { ...getCollectorSettings(), ...newSettings };
+    const dir = path.dirname(SETTINGS_FILE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SETTINGS_FILE_PATH, JSON.stringify(merged, null, 2), 'utf-8');
+    return merged;
+  } catch (e) {
+    console.error('[Collector] Failed to save collector settings:', e.message);
+    return getCollectorSettings();
+  }
+}
+
+// 12. 동적 수집 마스터 실행 함수 (한국 + 미국 통합 지원)
 async function runDynamicCollection(category, market = 'ALL') {
   console.log(`⚡ 동적 시장 데이터 수집 시작 (카테고리: ${category}, 시장: ${market})...`);
   
@@ -534,42 +604,45 @@ async function runDynamicCollection(category, market = 'ALL') {
   let usSymbols = [];
 
   // 한국 데이터 수집
-  if (market === 'ALL' || market === 'KRX') {
-    const krList = await scrapeNaverRankings(category);
-    for (const st of krList) {
-      const q = await fetchDetailedStockMetrics(st.symbol) || await fetchNaverQuote(st.symbol);
-      if (q && q.price > 0) {
-        await dbRunAsync(
-          `INSERT INTO stocks (symbol, name, market, assetType, price, changeRate, volume, marketCap, per, pbr, roe, dividendYield, high52w, low52w, currency, updated_at) 
-           VALUES (?, ?, 'KRX', 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'KRW', datetime('now', 'localtime'))
-           ON CONFLICT(symbol) DO UPDATE SET 
-           price = excluded.price, 
-           changeRate = excluded.changeRate, 
-           volume = excluded.volume, 
-           marketCap = COALESCE(excluded.marketCap, stocks.marketCap),
-           per = COALESCE(excluded.per, stocks.per),
-           pbr = COALESCE(excluded.pbr, stocks.pbr),
-           roe = COALESCE(excluded.roe, stocks.roe),
-           dividendYield = COALESCE(excluded.dividendYield, stocks.dividendYield),
-           high52w = COALESCE(excluded.high52w, stocks.high52w),
-           low52w = COALESCE(excluded.low52w, stocks.low52w),
-           updated_at = excluded.updated_at`,
-          [
-            st.symbol,
-            st.name,
-            q.price,
-            q.changeRate,
-            q.volume,
-            q.marketCap || null,
-            q.per || null,
-            q.pbr || null,
-            q.roe || null,
-            q.dividendYield || null,
-            q.high52w || null,
-            q.low52w || null
-          ]
-        );
-        krSymbols.push(st.symbol);
+  if (market === 'ALL' || market === 'KRX' || market === 'KOSPI' || market === 'KOSDAQ') {
+    const sosokList = market === 'KOSPI' ? [0] : market === 'KOSDAQ' ? [1] : [0, 1];
+    for (const sosok of sosokList) {
+      const krList = await scrapeNaverRankings(category, sosok, 40);
+      for (const st of krList) {
+        const q = await fetchDetailedStockMetrics(st.symbol) || await fetchNaverQuote(st.symbol);
+        if (q && q.price > 0) {
+          await dbRunAsync(
+            `INSERT INTO stocks (symbol, name, market, assetType, price, changeRate, volume, marketCap, per, pbr, roe, dividendYield, high52w, low52w, currency, updated_at) 
+             VALUES (?, ?, 'KRX', 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'KRW', datetime('now', 'localtime'))
+             ON CONFLICT(symbol) DO UPDATE SET 
+             price = excluded.price, 
+             changeRate = excluded.changeRate, 
+             volume = excluded.volume, 
+             marketCap = COALESCE(excluded.marketCap, stocks.marketCap),
+             per = COALESCE(excluded.per, stocks.per),
+             pbr = COALESCE(excluded.pbr, stocks.pbr),
+             roe = COALESCE(excluded.roe, stocks.roe),
+             dividendYield = COALESCE(excluded.dividendYield, stocks.dividendYield),
+             high52w = COALESCE(excluded.high52w, stocks.high52w),
+             low52w = COALESCE(excluded.low52w, stocks.low52w),
+             updated_at = excluded.updated_at`,
+            [
+              st.symbol,
+              st.name,
+              q.price,
+              q.changeRate,
+              q.volume,
+              q.marketCap || null,
+              q.per || null,
+              q.pbr || null,
+              q.roe || null,
+              q.dividendYield || null,
+              q.high52w || null,
+              q.low52w || null
+            ]
+          );
+          krSymbols.push(st.symbol);
+        }
       }
     }
   }
@@ -583,6 +656,8 @@ async function runDynamicCollection(category, market = 'ALL') {
       usList = await fetchYahooScreener('most_actives');
     } else if (category === 'rise') {
       usList = await fetchYahooScreener('day_gainers');
+    } else if (category === 'fall') {
+      usList = await fetchYahooScreener('day_losers');
     } else {
       usList = await fetchYahooScreener('growth_technology_stocks');
     }
@@ -636,6 +711,7 @@ async function runDynamicCollection(category, market = 'ALL') {
   let orderBy = 'marketCap DESC';
   if (category === 'volume') orderBy = 'volume DESC';
   else if (category === 'rise') orderBy = 'changeRate DESC';
+  else if (category === 'fall') orderBy = 'changeRate ASC';
 
   const query = `SELECT * FROM stocks WHERE symbol IN (${placeholders}) ORDER BY ${orderBy}`;
   const rows = await dbAllAsync(query, uniqueSymbols);
@@ -664,107 +740,150 @@ async function runDynamicCollection(category, market = 'ALL') {
   };
 }
 
-// 12. 전체 DB 주식 실시간 시세 업데이트 (국내 + 미국 전 종목)
-async function updateStockPrices() {
-  const rows = await dbAllAsync('SELECT symbol, market, currency FROM stocks');
-  const updated = [];
-  const krx = rows.filter(r => r.market === 'KRX' || r.currency === 'KRW');
-  const us = rows.filter(r => r.market === 'US' || r.currency === 'USD');
+// 13. 전 시장 유니버스 기반 정밀 수집 및 DB 정돈 (사용자 정의 조건 적용)
+async function refreshAllRankingsAndSave(customConfig = null) {
+  const cfg = customConfig ? { ...getCollectorSettings(), ...customConfig } : getCollectorSettings();
+  console.log('🔄 [Universe Collector] 맞춤 수집 기준 시작:', JSON.stringify(cfg));
 
-  // 1. KRX 업데이트
-  for (const st of krx) {
-    const q = await fetchDetailedStockMetrics(st.symbol) || await fetchNaverQuote(st.symbol);
-    if (q && q.price > 0) {
-      await dbRunAsync(
-        `UPDATE stocks SET 
-          price = ?, changeRate = ?, volume = ?, 
-          marketCap = COALESCE(?, marketCap),
-          per = COALESCE(?, per),
-          pbr = COALESCE(?, pbr),
-          roe = COALESCE(?, roe),
-          dividendYield = COALESCE(?, dividendYield),
-          high52w = COALESCE(?, high52w),
-          low52w = COALESCE(?, low52w),
-          updated_at = datetime('now', 'localtime') 
-        WHERE symbol = ?`,
-        [q.price, q.changeRate, q.volume, q.marketCap || null, q.per || null, q.pbr || null, q.roe || null, q.dividendYield || null, q.high52w || null, q.low52w || null, st.symbol]
-      );
-      updated.push({ symbol: st.symbol, price: q.price, changeRate: q.changeRate });
-    }
-  }
-
-  // 2. US 병렬 업데이트
-  await Promise.all(us.map(async (st) => {
-    const q = await fetchDetailedStockMetrics(st.symbol) || await fetchYahooQuote(st.symbol);
-    if (q && q.price > 0) {
-      await dbRunAsync(
-        `UPDATE stocks SET 
-          price = ?, changeRate = ?, volume = ?,
-          marketCap = COALESCE(?, marketCap),
-          per = COALESCE(?, per),
-          pbr = COALESCE(?, pbr),
-          roe = COALESCE(?, roe),
-          dividendYield = COALESCE(?, dividendYield),
-          high52w = COALESCE(?, high52w),
-          low52w = COALESCE(?, low52w),
-          updated_at = datetime('now', 'localtime') 
-        WHERE symbol = ?`,
-        [q.price, q.changeRate, q.volume, q.marketCap || null, q.per || null, q.pbr || null, q.roe || null, q.dividendYield || null, q.high52w || null, q.low52w || null, st.symbol]
-      );
-      updated.push({ symbol: st.symbol, price: q.price, changeRate: q.changeRate });
-    }
-  }));
-
-  return updated;
-}
-
-// 13. 전 시장 랭킹 및 시세 정기 자동 수집 (당일 상위 종목만 엄선하여 저장 및 DB 정돈)
-async function refreshAllRankingsAndSave() {
-  console.log('🔄 [Today Top Stocks] 당일 시장 상위 핵심 종목 수집 및 DB 정돈 시작...');
   try {
-    // 1. 시가총액 상위
-    const mcRes = await runDynamicCollection('market_cap', 'ALL');
-    // 2. 거래량 상위
-    const volRes = await runDynamicCollection('volume', 'ALL');
-    // 3. 급등주 (당일 상승률 상위)
-    const riseRes = await runDynamicCollection('rise', 'ALL');
-    // 4. 시장 지수 및 환율
+    const selectedSymbolMap = new Map(); // symbol -> { symbol, name, market, originReasons: Set }
+
+    const addSymbol = (symbol, name, market, reason) => {
+      if (!symbol) return;
+      if (!selectedSymbolMap.has(symbol)) {
+        selectedSymbolMap.set(symbol, { symbol, name, market, reasons: new Set([reason]) });
+      } else {
+        selectedSymbolMap.get(symbol).reasons.add(reason);
+      }
+    };
+
+    // 1. 코스피 200 유니버스 수집 (시총 30%, 거래량 30%, 급등 20, 급락 20)
+    const kospiMcCount = Math.round((200 * (cfg.kospiMarketCapPercent || 30)) / 100);
+    const kospiVolCount = Math.round((200 * (cfg.kospiVolumePercent || 30)) / 100);
+    const [kospiMc, kospiVol, kospiRise, kospiFall] = await Promise.all([
+      scrapeNaverRankings('market_cap', 0, kospiMcCount),
+      scrapeNaverRankings('volume', 0, kospiVolCount),
+      scrapeNaverRankings('rise', 0, cfg.kospiRiseCount || 20),
+      scrapeNaverRankings('fall', 0, cfg.kospiFallCount || 20)
+    ]);
+    kospiMc.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 시총상위'));
+    kospiVol.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 거래량상위'));
+    kospiRise.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 급등주'));
+    kospiFall.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스피 급락주'));
+
+    // 2. 코스닥 150 유니버스 수집 (시총 30%, 거래량 30%, 급등 20, 급락 20)
+    const kosdaqMcCount = Math.round((150 * (cfg.kosdaqMarketCapPercent || 30)) / 100);
+    const kosdaqVolCount = Math.round((150 * (cfg.kosdaqVolumePercent || 30)) / 100);
+    const [kosdaqMc, kosdaqVol, kosdaqRise, kosdaqFall] = await Promise.all([
+      scrapeNaverRankings('market_cap', 1, kosdaqMcCount),
+      scrapeNaverRankings('volume', 1, kosdaqVolCount),
+      scrapeNaverRankings('rise', 1, cfg.kosdaqRiseCount || 20),
+      scrapeNaverRankings('fall', 1, cfg.kosdaqFallCount || 20)
+    ]);
+    kosdaqMc.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 시총상위'));
+    kosdaqVol.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 거래량상위'));
+    kosdaqRise.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 급등주'));
+    kosdaqFall.forEach(s => addSymbol(s.symbol, s.name, 'KRX', '코스닥 급락주'));
+
+    // 3. 미국 S&P 500 / NASDAQ 100 유니버스 수집
+    const usMcCount = Math.round((100 * (cfg.usMarketCapPercent || 30)) / 100);
+    const usVolCount = Math.round((100 * (cfg.usVolumePercent || 30)) / 100);
+    const [usMc, usVol, usRise, usFall] = await Promise.all([
+      fetchUSMarketCapRankings().then(list => list.slice(0, usMcCount)),
+      fetchYahooScreener('most_actives').then(list => list.slice(0, usVolCount)),
+      fetchYahooScreener('day_gainers').then(list => list.slice(0, cfg.usRiseCount || 20)),
+      fetchYahooScreener('day_losers').then(list => list.slice(0, cfg.usFallCount || 20))
+    ]);
+    usMc.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 시총상위'));
+    usVol.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 거래량상위'));
+    usRise.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 급등주'));
+    usFall.forEach(s => addSymbol(s.symbol, s.name, 'US', '미국 급락주'));
+
+    // 4. 사용자 관심종목(Watchlist) 추가
+    const watchRows = await dbAllAsync(`SELECT symbol, name FROM watchlist`);
+    watchRows.forEach(w => addSymbol(w.symbol, w.name, /^[0-9]{6}$/.test(w.symbol) ? 'KRX' : 'US', '관심종목'));
+
+    const allSelectedList = Array.from(selectedSymbolMap.values());
+    console.log(`📊 합집합 필터링 완료: 총 ${allSelectedList.length}개 유니버스 종목 선정 (중복 제거됨)`);
+
+    // 5. 상세 시세 및 재무 지표 병렬 동기화
+    for (const item of allSelectedList) {
+      const q = await fetchDetailedStockMetrics(item.symbol) || 
+        (item.market === 'KRX' ? await fetchNaverQuote(item.symbol) : await fetchYahooQuote(item.symbol));
+      
+      if (q && q.price > 0) {
+        await dbRunAsync(
+          `INSERT INTO stocks (symbol, name, market, assetType, price, changeRate, volume, marketCap, per, pbr, roe, dividendYield, high52w, low52w, currency, updated_at) 
+           VALUES (?, ?, ?, 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+           ON CONFLICT(symbol) DO UPDATE SET 
+           name = COALESCE(excluded.name, stocks.name),
+           price = excluded.price, 
+           changeRate = excluded.changeRate, 
+           volume = excluded.volume, 
+           marketCap = COALESCE(excluded.marketCap, stocks.marketCap),
+           per = COALESCE(excluded.per, stocks.per),
+           pbr = COALESCE(excluded.pbr, stocks.pbr),
+           roe = COALESCE(excluded.roe, stocks.roe),
+           dividendYield = COALESCE(excluded.dividendYield, stocks.dividendYield),
+           high52w = COALESCE(excluded.high52w, stocks.high52w),
+           low52w = COALESCE(excluded.low52w, stocks.low52w),
+           updated_at = excluded.updated_at`,
+          [
+            item.symbol,
+            item.name || q.name || item.symbol,
+            item.market,
+            q.price,
+            q.changeRate,
+            q.volume,
+            q.marketCap || null,
+            q.per || null,
+            q.pbr || null,
+            q.roe || null,
+            q.dividendYield || null,
+            q.high52w || null,
+            q.low52w || null,
+            item.market === 'KRX' ? 'KRW' : 'USD'
+          ]
+        );
+      }
+    }
+
+    // 6. DB 정돈: 조건에 해당하지 않는 과거 불필요 종목 제거 (관심종목은 완벽 보존)
+    if (allSelectedList.length > 0) {
+      const allowedSymbols = allSelectedList.map(s => s.symbol);
+      const placeholders = allowedSymbols.map(() => '?').join(',');
+      await dbRunAsync(`DELETE FROM stocks WHERE symbol NOT IN (${placeholders})`, allowedSymbols);
+      console.log(`🧹 [Clean] 수집 조건 및 관심종목 총 ${allowedSymbols.length}개로 DB 정돈 완료!`);
+    }
+
+    // 7. 지수 및 환율 갱신
     const indices = await updateMarketIndices();
 
-    // 5. 오늘 상위 활성 종목 + 사용자 관심종목(Watchlist)만 보존
-    const topSymbols = new Set([
-      ...(mcRes?.data?.map(s => s.symbol) || []),
-      ...(volRes?.data?.map(s => s.symbol) || []),
-      ...(riseRes?.data?.map(s => s.symbol) || [])
+    // 8. 랭킹 캐시 갱신 (market_cap, volume, rise, fall)
+    await Promise.all([
+      runDynamicCollection('market_cap', 'ALL'),
+      runDynamicCollection('volume', 'ALL'),
+      runDynamicCollection('rise', 'ALL'),
+      runDynamicCollection('fall', 'ALL')
     ]);
-
-    // 관심종목(Watchlist)에 등록된 종목은 안전하게 보존
-    const watchRows = await dbAllAsync(`SELECT symbol FROM watchlist`);
-    watchRows.forEach(w => topSymbols.add(w.symbol));
-
-    if (topSymbols.size > 0) {
-      const allowed = Array.from(topSymbols);
-      const placeholders = allowed.map(() => '?').join(',');
-      await dbRunAsync(`DELETE FROM stocks WHERE symbol NOT IN (${placeholders})`, allowed);
-      console.log(`🧹 [Clean] 오늘 상위 핵심 종목 및 관심종목 총 ${allowed.length}개로 DB 정돈 완료!`);
-    }
 
     const currentStocks = await dbAllAsync(`SELECT * FROM stocks`);
     return {
       success: true,
+      settings: cfg,
       updatedIndicesCount: indices.length,
       updatedStocksCount: currentStocks.length,
       timestamp: new Date().toISOString()
     };
   } catch (err) {
-    console.warn('❌ [Today Top Stocks Warning]', err.message);
-    return { success: false, updatedIndicesCount: 0, updatedStocksCount: 0, timestamp: new Date().toISOString() };
+    console.error('❌ [Universe Collector Error]', err);
+    return { success: false, error: err.message, timestamp: new Date().toISOString() };
   }
 }
 
-// 14. 실시간 수집 마스터 실행 함수 (오늘 상위 종목 중심)
+// 14. 실시간 수집 마스터 실행 함수
 async function runRealtimeCollection() {
-  console.log('⚡ 실시간 오늘 상위 시장 데이터 수집 시작...');
+  console.log('⚡ 실시간 맞춤 시장 유니버스 수집 시작...');
   return await refreshAllRankingsAndSave();
 }
 
@@ -778,6 +897,7 @@ module.exports = {
   runRealtimeCollection,
   runDynamicCollection,
   refreshAllRankingsAndSave,
-  updateStockPrices,
+  getCollectorSettings,
+  saveCollectorSettings,
   updateMarketIndices
 };

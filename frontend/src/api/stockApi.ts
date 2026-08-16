@@ -190,6 +190,76 @@ export async function fetchQuantMetrics(): Promise<QuantMetrics | null> {
   }
 }
 
+export interface CollectorSettings {
+  kospiMarketCapPercent: number;
+  kospiVolumePercent: number;
+  kospiRiseCount: number;
+  kospiFallCount: number;
+  kosdaqMarketCapPercent: number;
+  kosdaqVolumePercent: number;
+  kosdaqRiseCount: number;
+  kosdaqFallCount: number;
+  usMarketCapPercent: number;
+  usVolumePercent: number;
+  usRiseCount: number;
+  usFallCount: number;
+}
+
+export const DEFAULT_COLLECTOR_SETTINGS: CollectorSettings = {
+  kospiMarketCapPercent: 30,
+  kospiVolumePercent: 30,
+  kospiRiseCount: 20,
+  kospiFallCount: 20,
+  kosdaqMarketCapPercent: 30,
+  kosdaqVolumePercent: 30,
+  kosdaqRiseCount: 20,
+  kosdaqFallCount: 20,
+  usMarketCapPercent: 30,
+  usVolumePercent: 30,
+  usRiseCount: 20,
+  usFallCount: 20
+};
+
+export async function fetchCollectorSettings(): Promise<CollectorSettings> {
+  try {
+    const res = await fetch('/api/collector/settings');
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    return json.data || DEFAULT_COLLECTOR_SETTINGS;
+  } catch (err) {
+    return DEFAULT_COLLECTOR_SETTINGS;
+  }
+}
+
+export async function saveCollectorSettingsApi(settings: Partial<CollectorSettings>): Promise<CollectorSettings> {
+  try {
+    const res = await fetch('/api/collector/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    return json.data || DEFAULT_COLLECTOR_SETTINGS;
+  } catch (err) {
+    return DEFAULT_COLLECTOR_SETTINGS;
+  }
+}
+
+export async function triggerUniverseCollection(customConfig?: Partial<CollectorSettings>): Promise<{ success: boolean; updatedIndicesCount?: number; updatedStocksCount?: number; timestamp: string }> {
+  try {
+    const res = await fetch('/api/collect/universe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customConfig || {})
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    return { success: false, timestamp: new Date().toISOString() };
+  }
+}
+
 export async function fetchRankings(category: string, market: string = 'ALL'): Promise<{ success: boolean, category: string, market?: string, data: Stock[] }> {
   try {
     const res = await fetch(`/api/rankings/${category}?market=${encodeURIComponent(market)}`);

@@ -4,6 +4,8 @@ import { fetchRankings, fetchWatchlist } from '../../api/stockApi';
 import { FilterPanel } from './FilterPanel';
 import { StockTable } from './StockTable';
 import { DynamicQuantGuide } from './DynamicQuantGuide';
+import { CollectorSettingsModal } from './CollectorSettingsModal';
+import { Sliders } from 'lucide-react';
 
 interface ScreenerViewProps {
   stocks: Stock[];
@@ -18,6 +20,7 @@ interface ScreenerViewProps {
   onResetFilters: () => void;
   onToggleWatchlist: (symbol: string) => void;
   onSelectStock: (symbol: string) => void;
+  onRefreshData?: () => Promise<void>;
 }
 
 const KOSDAQ_SYMBOLS = new Set([
@@ -41,7 +44,8 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   onDeletePreset,
   onResetFilters,
   onToggleWatchlist,
-  onSelectStock
+  onSelectStock,
+  onRefreshData
 }) => {
   // 동적 추천 기준 원클릭 주입 (기존 필터와 누적/중복되지 않도록 클린 리셋 후 적용)
   const handleApplyDynamicFilters = (partial: Partial<FilterState>) => {
@@ -61,9 +65,10 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
     });
   };
 
-  const [activeCategory, setActiveCategory] = useState<'all' | 'market_cap' | 'volume' | 'rise' | 'watchlist'>('market_cap');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'market_cap' | 'volume' | 'rise' | 'fall' | 'watchlist'>('market_cap');
   const [dynamicStocks, setDynamicStocks] = useState<Stock[]>([]);
   const [isLoadingDynamic, setIsLoadingDynamic] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     async function loadDynamic() {
@@ -124,6 +129,9 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
     }
     if (activeCategory === 'rise') {
       return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
+    }
+    if (activeCategory === 'fall') {
+      return dynamicStocks.length > 0 ? dynamicStocks : [...stocks].sort((a, b) => (a.changeRate || 0) - (b.changeRate || 0));
     }
     return dynamicStocks.length > 0 ? dynamicStocks : stocks;
   };
@@ -207,7 +215,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           {/* 동적 디스커버리 탭 메뉴 & 시장 선택 바 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '4px 2px' }}>
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', flexWrap: 'wrap', alignItems: 'center' }}>
               <button 
                 className={`btn ${activeCategory === 'market_cap' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setActiveCategory('market_cap')}
@@ -225,9 +233,16 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
               <button 
                 className={`btn ${activeCategory === 'rise' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setActiveCategory('rise')}
-                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                style={{ fontSize: '0.82rem', padding: '6px 12px', color: activeCategory === 'rise' ? '#fff' : 'var(--color-up)' }}
               >
                 급등주
+              </button>
+              <button 
+                className={`btn ${activeCategory === 'fall' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveCategory('fall')}
+                style={{ fontSize: '0.82rem', padding: '6px 12px', color: activeCategory === 'fall' ? '#fff' : 'var(--color-down)' }}
+              >
+                급락주
               </button>
               <button 
                 className={`btn ${activeCategory === 'watchlist' ? 'btn-primary' : 'btn-secondary'}`}
@@ -245,39 +260,64 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
               </button>
             </div>
 
-            {/* 시장 전환 퀵 버튼 (전체 / 코스피 / 코스닥 / 미국) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-              <span style={{ color: 'var(--text-muted)', marginRight: '2px' }}>시장:</span>
+            {/* 우측 컨트롤: 시장 전환 퀵 버튼 & 수집 조건 커스텀 버튼 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-muted)', marginRight: '2px' }}>시장:</span>
+                <button
+                  className={`badge ${filters.market === 'ALL' ? 'badge-tag' : ''}`}
+                  style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'ALL' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'ALL' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
+                  onClick={() => setFilters(prev => ({ ...prev, market: 'ALL' }))}
+                >
+                  전체
+                </button>
+                <button
+                  className={`badge ${filters.market === 'KOSPI' ? 'badge-tag' : ''}`}
+                  style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KOSPI' ? '1px solid #818cf8' : '1px solid var(--border-subtle)', background: filters.market === 'KOSPI' ? 'rgba(99, 102, 241, 0.25)' : 'transparent', color: filters.market === 'KOSPI' ? '#a5b4fc' : 'var(--text-secondary)', fontWeight: filters.market === 'KOSPI' ? 700 : 400 }}
+                  onClick={() => setFilters(prev => ({ ...prev, market: 'KOSPI' }))}
+                >
+                  코스피
+                </button>
+                <button
+                  className={`badge ${filters.market === 'KOSDAQ' ? 'badge-tag' : ''}`}
+                  style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KOSDAQ' ? '1px solid #10b981' : '1px solid var(--border-subtle)', background: filters.market === 'KOSDAQ' ? 'rgba(16, 185, 129, 0.25)' : 'transparent', color: filters.market === 'KOSDAQ' ? '#34d399' : 'var(--text-secondary)', fontWeight: filters.market === 'KOSDAQ' ? 700 : 400 }}
+                  onClick={() => setFilters(prev => ({ ...prev, market: 'KOSDAQ' }))}
+                >
+                  코스닥
+                </button>
+                <button
+                  className={`badge ${filters.market === 'US' ? 'badge-tag' : ''}`}
+                  style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'US' ? '1px solid #f59e0b' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fbbf24' : 'var(--text-secondary)' }}
+                  onClick={() => setFilters(prev => ({ ...prev, market: 'US' }))}
+                >
+                  미국
+                </button>
+              </div>
+
               <button
-                className={`badge ${filters.market === 'ALL' ? 'badge-tag' : ''}`}
-                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'ALL' ? '1px solid var(--color-brand)' : '1px solid var(--border-subtle)', background: filters.market === 'ALL' ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: filters.market === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
-                onClick={() => setFilters(prev => ({ ...prev, market: 'ALL' }))}
+                onClick={() => setIsSettingsOpen(true)}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '5px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  borderRadius: '6px'
+                }}
+                title="코스피 200/코스닥 150/미국 시장별 시총, 거래량 수집 비율 및 급등락 종목 수를 커스텀 설정합니다."
               >
-                전체
-              </button>
-              <button
-                className={`badge ${filters.market === 'KOSPI' ? 'badge-tag' : ''}`}
-                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KOSPI' ? '1px solid #818cf8' : '1px solid var(--border-subtle)', background: filters.market === 'KOSPI' ? 'rgba(99, 102, 241, 0.25)' : 'transparent', color: filters.market === 'KOSPI' ? '#a5b4fc' : 'var(--text-secondary)', fontWeight: filters.market === 'KOSPI' ? 700 : 400 }}
-                onClick={() => setFilters(prev => ({ ...prev, market: 'KOSPI' }))}
-              >
-                코스피
-              </button>
-              <button
-                className={`badge ${filters.market === 'KOSDAQ' ? 'badge-tag' : ''}`}
-                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'KOSDAQ' ? '1px solid #10b981' : '1px solid var(--border-subtle)', background: filters.market === 'KOSDAQ' ? 'rgba(16, 185, 129, 0.25)' : 'transparent', color: filters.market === 'KOSDAQ' ? '#34d399' : 'var(--text-secondary)', fontWeight: filters.market === 'KOSDAQ' ? 700 : 400 }}
-                onClick={() => setFilters(prev => ({ ...prev, market: 'KOSDAQ' }))}
-              >
-                코스닥
-              </button>
-              <button
-                className={`badge ${filters.market === 'US' ? 'badge-tag' : ''}`}
-                style={{ cursor: 'pointer', padding: '4px 8px', border: filters.market === 'US' ? '1px solid #f59e0b' : '1px solid var(--border-subtle)', background: filters.market === 'US' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: filters.market === 'US' ? '#fbbf24' : 'var(--text-secondary)' }}
-                onClick={() => setFilters(prev => ({ ...prev, market: 'US' }))}
-              >
-                미국
+                <Sliders size={13} color="var(--color-brand)" />
+                <span>수집 조건</span>
               </button>
             </div>
           </div>
+
+          <CollectorSettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            onRefreshData={onRefreshData}
+          />
 
           {isLoadingDynamic ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>

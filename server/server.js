@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addWatchlist, removeWatchlist, computeStockWarningBadges, computeStockMomentumBadges } = require('./db');
-const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave } = require('./collector');
+const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave, getCollectorSettings, saveCollectorSettings } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
 const { runDartFinancialSync } = require('./dartCollector');
 const { syncAllRealNews, searchLatestNewsForStock } = require('./newsCollector');
@@ -141,6 +141,39 @@ app.post('/api/collect/realtime', async (req, res) => {
   }
 });
 
+// 7-1. 수집 조건 설정 조회 및 저장 API
+app.get('/api/collector/settings', (req, res) => {
+  try {
+    const settings = getCollectorSettings();
+    res.json({ success: true, data: settings });
+  } catch (err) {
+    console.error('Get settings error:', err);
+    res.status(500).json({ error: 'Failed to get settings' });
+  }
+});
+
+app.post('/api/collector/settings', (req, res) => {
+  try {
+    const updated = saveCollectorSettings(req.body || {});
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Save settings error:', err);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// 7-2. 맞춤 유니버스 종목 수집 실행 (사용자 정의 조건 적용)
+app.post('/api/collect/universe', async (req, res) => {
+  try {
+    const customConfig = req.body;
+    const result = await refreshAllRankingsAndSave(customConfig);
+    res.json(result);
+  } catch (err) {
+    console.error('Universe collect error:', err);
+    res.status(500).json({ error: 'Failed to collect custom universe' });
+  }
+});
+
 // 8. DART 재무제표 동기화 실행 (Node.js 기반)
 app.post('/api/collect/dart', async (req, res) => {
   try {
@@ -179,21 +212,21 @@ app.get('/api/quant/metrics', async (req, res) => {
 app.get('/api/rankings/:category', async (req, res) => {
   try {
     const { category } = req.params;
-    const { market } = req.query; // 'ALL', 'KRX', 'US'
+    const { market } = req.query; // 'ALL', 'KRX', 'US', 'KOSPI', 'KOSDAQ'
     const targetMarket = market || 'ALL';
 
     const { db } = require('./db');
 
-    // 1. 캐시 테이블 market_rankings 에서 1위~50위 즉시 조회
+    // 1. 캐시 테이블 market_rankings 에서 1위~60위 즉시 조회
     let query = `
       SELECT r.ranking, s.* FROM market_rankings r
       JOIN stocks s ON r.symbol = s.symbol
-      WHERE r.category = ? AND r.market = ?
+      WHERE r.category = ? AND (r.market = ? OR ? = 'ALL')
       ORDER BY r.ranking ASC
       LIMIT 60
     `;
 
-    db.all(query, [category, targetMarket], (err, rows) => {
+    db.all(query, [category, targetMarket, targetMarket], (err, rows) => {
       if (!err && rows && rows.length > 0) {
         const enriched = rows.map(r => ({
           ...r,
@@ -214,6 +247,7 @@ app.get('/api/rankings/:category', async (req, res) => {
       let orderBy = 's.marketCap DESC';
       if (category === 'volume') orderBy = 's.volume DESC';
       else if (category === 'rise') orderBy = 's.changeRate DESC';
+      else if (category === 'fall') orderBy = 's.changeRate ASC';
 
       let whereConditions = ['s.price > 0'];
       if (targetMarket === 'KRX') {
