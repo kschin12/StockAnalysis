@@ -2,6 +2,7 @@ import React from 'react';
 import type { MarketIndex, SectorPerf, Stock } from '../../types/stock';
 import { IndexCard } from './IndexCard';
 import { SectorHeatmap } from './SectorHeatmap';
+import { AiMarketBriefing } from './AiMarketBriefing';
 
 interface MarketDashboardProps {
   indices: MarketIndex[];
@@ -40,6 +41,9 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
           <IndexCard key={idx.code} index={idx} />
         ))}
       </div>
+
+      {/* Gemini AI 실시간 종합 시황 진단 브리핑 */}
+      <AiMarketBriefing />
 
       {/* Sector Heatmap */}
       <SectorHeatmap sectors={sectors} />

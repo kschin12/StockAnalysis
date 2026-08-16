@@ -49,10 +49,23 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
   const [searchedNews, setSearchedNews] = useState<NewsItem[] | null>(null);
   const [chartNewsTab, setChartNewsTab] = useState<'NEWS' | 'DISCLOSURE' | 'ALL'>('NEWS');
 
+  // 종목 드릴다운 및 실시간 검색 상태
+  const [marketFilter, setMarketFilter] = useState<'ALL' | 'KOSPI' | 'KOSDAQ' | 'US'>('ALL');
+  const [stockSearchQuery, setStockSearchQuery] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+
   // 종목 변경 시 검색 뉴스 초기화
   useEffect(() => {
     setSearchedNews(null);
   }, [stock.symbol]);
+
+  // 검색 및 시장 드릴다운 필터링된 종목 리스트
+  const filteredStockList = allStocks.filter(s => {
+    if (marketFilter !== 'ALL' && s.market !== marketFilter) return false;
+    if (!stockSearchQuery.trim()) return true;
+    const q = stockSearchQuery.trim().toLowerCase();
+    return s.name.toLowerCase().includes(q) || s.symbol.toLowerCase().includes(q);
+  });
 
   useEffect(() => {
     const handleScroll = () => setActiveBadgeTooltip(null);
@@ -391,13 +404,62 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div className="glass-card" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="glass-card" style={{
+        padding: '20px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px',
+        position: 'relative',
+        zIndex: 50
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ fontSize: '1.5rem' }}>{stock.name}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <a
+                href={stock.market === 'KOSPI' || stock.market === 'KOSDAQ' || /^[0-9]{6}$/.test(stock.symbol)
+                  ? `https://finance.naver.com/item/main.naver?code=${stock.symbol}`
+                  : `https://finance.yahoo.com/quote/${stock.symbol}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`${stock.market === 'KOSPI' || stock.market === 'KOSDAQ' || /^[0-9]{6}$/.test(stock.symbol) ? '네이버 증권' : 'Yahoo Finance'}에서 '${stock.name}' 상세 정보 보기 (새 탭)`}
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: 'inherit',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'color 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-brand)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'inherit')}
+              >
+                {stock.name}
+              </a>
               <span className="badge badge-tag">{stock.market}</span>
-              <span className="badge" style={{ background: '#2d3748', color: '#e2e8f0' }}>{stock.symbol}</span>
+              <a
+                href={stock.market === 'KOSPI' || stock.market === 'KOSDAQ' || /^[0-9]{6}$/.test(stock.symbol)
+                  ? `https://finance.naver.com/item/main.naver?code=${stock.symbol}`
+                  : `https://finance.yahoo.com/quote/${stock.symbol}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="badge"
+                title={`${stock.market === 'KOSPI' || stock.market === 'KOSDAQ' || /^[0-9]{6}$/.test(stock.symbol) ? '네이버 증권' : 'Yahoo Finance'}에서 '${stock.symbol}' 상세 정보 보기 (새 탭)`}
+                style={{
+                  background: '#2d3748',
+                  color: '#e2e8f0',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#4a5568')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#2d3748')}
+              >
+                {stock.symbol}
+              </a>
               {stock.assetType === 'ETF' && <span className="badge badge-up">ETF</span>}
             </div>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{stock.sector}</span>
@@ -416,23 +478,148 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>다른 종목 조회:</label>
-          <select
-            value={stock.symbol}
-            onChange={(e) => onSelectStock(e.target.value)}
-            style={{ minWidth: '160px' }}
-          >
-            {allStocks.map(s => (
-              <option key={s.symbol} value={s.symbol}>
-                {s.name} ({s.symbol})
-              </option>
+        {/* 종목 드릴다운 및 검색 컨트롤 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* 1. 시장 드릴다운 버튼 탭 */}
+          <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            {(['ALL', 'KOSPI', 'KOSDAQ', 'US'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setMarketFilter(m)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.74rem',
+                  fontWeight: marketFilter === m ? 700 : 500,
+                  borderRadius: '4px',
+                  background: marketFilter === m ? 'var(--color-brand)' : 'transparent',
+                  color: marketFilter === m ? '#fff' : 'var(--text-muted)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {m === 'ALL' ? '전체' : m}
+              </button>
             ))}
-          </select>
+          </div>
+
+          {/* 2. 실시간 검색 & 선택 콤보박스 */}
+          <div style={{ position: 'relative', minWidth: '220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="종목명/티커 검색..."
+                value={stockSearchQuery}
+                onChange={(e) => {
+                  setStockSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredStockList.length > 0) {
+                    onSelectStock(filteredStockList[0].symbol);
+                    setStockSearchQuery('');
+                    setIsDropdownOpen(false);
+                  } else if (e.key === 'Escape') {
+                    setIsDropdownOpen(false);
+                  }
+                }}
+                className="input"
+                style={{
+                  width: '100%',
+                  padding: '5px 28px 5px 10px',
+                  fontSize: '0.8rem',
+                  height: '32px',
+                  borderRadius: '6px',
+                  background: 'rgba(15, 23, 42, 0.8)'
+                }}
+              />
+              <Search size={14} style={{ position: 'absolute', right: '8px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            </div>
+
+            {/* 자동완성 / 검색 결과 드롭다운 리스트 */}
+            {isDropdownOpen && (
+              <>
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '6px',
+                  maxHeight: '280px',
+                  overflowY: 'auto',
+                  background: '#1e293b',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  boxShadow: '0 16px 36px rgba(0, 0, 0, 0.85)',
+                  zIndex: 100
+                }}>
+                  {filteredStockList.length === 0 ? (
+                    <div style={{ padding: '10px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                      일치하는 종목이 없습니다
+                    </div>
+                  ) : (
+                    filteredStockList.map(s => (
+                      <div
+                        key={s.symbol}
+                        onClick={() => {
+                          onSelectStock(s.symbol);
+                          setStockSearchQuery('');
+                          setIsDropdownOpen(false);
+                        }}
+                        style={{
+                          padding: '7px 10px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          background: s.symbol === stock.symbol ? 'rgba(99, 102, 241, 0.25)' : 'transparent',
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                          transition: 'background 0.1s'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = s.symbol === stock.symbol ? 'rgba(99, 102, 241, 0.25)' : 'transparent')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 600, color: s.symbol === stock.symbol ? 'var(--color-brand)' : '#f8fafc' }}>
+                            {s.name}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{s.symbol}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{
+                            fontSize: '0.7rem',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            color: '#94a3b8'
+                          }}>
+                            {s.market}
+                          </span>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: s.changeRate >= 0 ? 'var(--color-up)' : 'var(--color-down)'
+                          }}>
+                            {s.changeRate >= 0 ? '+' : ''}{s.changeRate.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative', zIndex: 1 }}>
         {/* 차트 상단 컨트롤 바 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>

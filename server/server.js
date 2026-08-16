@@ -2,6 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const altEnvPath = 'D:\\Projects\\StockAnalysis\\.env';
+if (fs.existsSync(altEnvPath)) {
+  require('dotenv').config({ path: altEnvPath, override: true });
+}
 const { getIndices, getSectors, getStocks, getStock, getNews, getWatchlist, addWatchlist, removeWatchlist, computeStockWarningBadges, computeStockMomentumBadges } = require('./db');
 const { runRealtimeCollection, runDynamicCollection, syncSingleStock, fetchStockCandles, fetchDetailedStockMetrics, refreshAllRankingsAndSave, getCollectorSettings, saveCollectorSettings } = require('./collector');
 const { evaluateMarketQuantMetrics } = require('./quantEngine');
@@ -115,6 +120,19 @@ app.get('/api/news', async (req, res) => {
     console.error('Error fetching news:', err);
     res.status(500).json({ error: 'Failed to fetch news' });
   }
+});
+
+// 6-0. 모든 기사 및 공시 데이터 일괄 삭제
+app.delete('/api/news', (req, res) => {
+  const { db } = require('./db');
+  db.run('DELETE FROM news;', function (err) {
+    if (err) {
+      console.error('Error deleting news:', err);
+      return res.status(500).json({ error: 'Failed to delete news data' });
+    }
+    console.log(`[DELETE /api/news] Deleted all news items (${this.changes} rows)`);
+    res.json({ success: true, count: this.changes, message: 'All news deleted successfully' });
+  });
 });
 
 // 6-1. 특정 종목 최신 뉴스 및 공시 실시간 맞춤 검색
@@ -276,6 +294,37 @@ app.get('/api/quant/metrics', async (req, res) => {
   } catch (err) {
     console.error('Quant metrics error:', err);
     res.status(500).json({ error: 'Failed to evaluate quant metrics' });
+  }
+});
+
+// 9-1. Gemini AI 실시간 국내외 종합 시황 분석 및 퀀트 브리핑 API
+app.get('/api/gemini/market-analysis', async (req, res) => {
+  try {
+    const { geminiService } = require('./geminiService');
+    const [indices, sectors, stocks] = await Promise.all([
+      getIndices(),
+      getSectors(),
+      getStocks()
+    ]);
+
+    const advancers = stocks.filter(s => s.changeRate > 0).length;
+    const decliners = stocks.filter(s => s.changeRate < 0).length;
+
+    const analysis = await geminiService.generateMarketAnalysis({
+      indices,
+      sectors,
+      advancers,
+      decliners
+    });
+
+    if (analysis) {
+      res.json(analysis);
+    } else {
+      res.status(503).json({ error: 'Gemini AI API key not configured or temporarily unavailable' });
+    }
+  } catch (err) {
+    console.error('Gemini market analysis error:', err);
+    res.status(500).json({ error: 'Failed to generate AI market analysis' });
   }
 });
 

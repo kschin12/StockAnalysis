@@ -133,6 +133,16 @@ export async function fetchNews(): Promise<NewsItem[]> {
   }
 }
 
+export async function deleteAllNews(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/news', { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.error('Error deleting news:', err);
+    return false;
+  }
+}
+
 export async function triggerRealtimeCollection(): Promise<{ success: boolean; updatedIndicesCount: number; updatedStocksCount: number; timestamp: string }> {
   try {
     const res = await fetch('/api/collect/realtime', { method: 'POST' });

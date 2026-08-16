@@ -1,4 +1,5 @@
 const { db } = require('./db');
+const { geminiService } = require('./geminiService');
 
 const iconv = new TextDecoder('euc-kr');
 
@@ -40,13 +41,79 @@ function cleanHtmlText(text, fallbackTitle = '') {
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#039;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rsquo;/g, "'")
+    .replace(/&ldquo;/g, '"')
+    .replace(/&rdquo;/g, '"')
+    .replace(/&middot;/g, '·')
+    .replace(/&bull;/g, '•')
     .replace(/&nbsp;/g, ' ')
-    .replace(/<[^>]*>?/gm, '')
+    .replace(/<\/?[a-zA-Z1-6]+(?:\s+[^>]*)?>/gi, ' ') // 안전한 HTML 태그 완전 제거
+    .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
   if (clean === fallbackTitle) return '';
   return clean;
+}
+
+// 비상장/지역행정/도서관/채용공고/지역행사 등 투자 무관 노이즈 기사 감지 필터
+const JUNK_NEWS_PATTERNS = [
+  /구청/i, /구의회/i, /시의회/i, /주민센터/i, /행정복지센터/i, /도서관/i, /어린이집/i,
+  /복지관/i, /자립생활센터/i, /안보훈련/i, /어부바/i, /새여울/i, /주민자치/i, /동정\b/i,
+  /부고\b/i, /인사\b/i, /모집공고/i, /채용공고/i, /구민/i, /시민참여/i, /일자리박람회/i,
+  /동료상담가/i, /에코업/i, /동호회/i, /바자회/i, /축제/i, /플리마켓/i
+];
+
+function isJunkNews(title = '', content = '') {
+  const text = `${title} ${content}`;
+  return JUNK_NEWS_PATTERNS.some(pattern => pattern.test(text));
+}
+
+// 텍스트에서 종목명 오탐 방지 정밀 매칭
+function matchStockFromText(text, stockList) {
+  if (!text) return null;
+
+  // 1. 대형주 및 주요 명칭 우선 매칭
+  if (text.includes('삼성전자') || (text.includes('삼전') && !text.includes('삼전닉스'))) return { symbol: '005930', name: '삼성전자' };
+  if (text.includes('SK하이닉스') || (text.includes('하이닉스') && !text.includes('삼전닉스'))) return { symbol: '000660', name: 'SK하이닉스' };
+  if (text.includes('현대차') || text.includes('현대자동차') || text.includes('제네시스')) return { symbol: '005380', name: '현대차' };
+  if (text.includes('LG에너지솔루션') || text.includes('LG엔솔') || text.includes('LG에너지')) return { symbol: '373220', name: 'LG에너지솔루션' };
+  if (text.includes('POSCO홀딩스') || text.includes('포스코홀딩스') || text.includes('포스코')) return { symbol: '005490', name: 'POSCO홀딩스' };
+  if (text.includes('KB금융') || text.includes('국민은행')) return { symbol: '105560', name: 'KB금융' };
+  if (text.includes('SK스퀘어')) return { symbol: '402340', name: 'SK스퀘어' };
+
+  // 2. 전체 DB 종목 리스트 검색 (글자수 긴 종목 우선)
+  const sortedStocks = [...stockList].sort((a, b) => b.name.length - a.name.length);
+  for (const s of sortedStocks) {
+    if (!s.name || s.name.length < 2) continue;
+
+    // 2자 이하 짧은 단어 (대덕, 대상, 한화, CJ, SK 등)의 오탐 방지
+    if (s.name.length <= 2) {
+      // 행정구역(대덕구, 은평구 등), 조사/접미사(대상으로, 한화로 등) 제외
+      const excludedSuffixes = [
+        s.name + '구', s.name + '시', s.name + '군', s.name + '동',
+        s.name + '으로', s.name + '이다', s.name + '자', s.name + '광',
+        s.name + '열', s.name + '가'
+      ];
+      if (excludedSuffixes.some(ex => text.includes(ex))) continue;
+
+      // 짧은 이름은 기업/주식/실적 문맥이 명확한 경우에만 매칭
+      const hasBizContext = /(주가|실적|공시|상장|기업|대표|영업익|매출|투자|수주|계약|증시|코스피|코스닥|반도체|바이오|지분|홀딩스|전자|스퀘어)/.test(text);
+      if (!hasBizContext) continue;
+
+      if (text.includes(s.name)) {
+        return s;
+      }
+    } else {
+      if (text.includes(s.name)) {
+        return s;
+      }
+    }
+  }
+
+  return null;
 }
 
 // DART 공시 본문에서 "주요내용", "주요사항", "결정사항", "변동원인" 영역을 정밀 추출
@@ -211,6 +278,15 @@ async function fetchLiveKoreanNews() {
     const buf = await res.arrayBuffer();
     const html = iconv.decode(buf);
 
+    const stockRows = await new Promise(resolve => {
+      db.all(`SELECT symbol, name FROM stocks`, [], (err, rows) => {
+        resolve(rows || []);
+      });
+    });
+    // 긴 종목명 우선 매칭 (예: 'LG에너지솔루션'이 'LG'보다 먼저 매칭)
+    const stockList = (stockRows || []).filter(s => s.name && s.name.length >= 2)
+      .sort((a, b) => b.name.length - a.name.length);
+
     const dlMatches = [...html.matchAll(/<dl[^>]*>([\s\S]*?)<\/dl>/gi)];
 
     const parsedArticles = [];
@@ -225,9 +301,11 @@ async function fetchLiveKoreanNews() {
 
       const pressMatch = content.match(/<span[^>]*class="press"[^>]*>([\s\S]*?)<\/span>/i);
       const wdateMatch = content.match(/<span[^>]*class="wdate"[^>]*>([\s\S]*?)<\/span>/i);
+      const summaryMatch = content.match(/<dd[^>]*class="articleSummary"[^>]*>([\s\S]*?)<span/i);
 
       const sourceName = pressMatch ? pressMatch[1].replace(/<[^>]+>/g, '').trim() : '네이버증권';
       const realPublishedDate = wdateMatch ? wdateMatch[1].trim().substring(0, 16) : new Date().toISOString().replace('T', ' ').substring(0, 16);
+      const extractedSummary = summaryMatch ? cleanHtmlText(summaryMatch[1], fullTitle) : '';
 
       const offMatch = href.match(/office_id=([0-9]+)/);
       const artMatch = href.match(/article_id=([0-9]+)/);
@@ -235,23 +313,35 @@ async function fetchLiveKoreanNews() {
         ? `https://n.news.naver.com/mnews/article/${offMatch[1]}/${artMatch[1]}`
         : `https://finance.naver.com${href}`;
 
-      // 종목 매칭
-      let symbol = '005930';
-      let companyName = '삼성전자';
-      if (fullTitle.includes('하이닉스')) { symbol = '000660'; companyName = 'SK하이닉스'; }
-      else if (fullTitle.includes('현대차') || fullTitle.includes('제네시스')) { symbol = '005380'; companyName = '현대차'; }
-      else if (fullTitle.includes('셀트리온')) { symbol = '068270'; companyName = '셀트리온'; }
-      else if (fullTitle.includes('네이버') || fullTitle.includes('NAVER')) { symbol = '035420'; companyName = 'NAVER'; }
-      else if (fullTitle.includes('LG엔솔') || fullTitle.includes('LG에너지')) { symbol = '373220'; companyName = 'LG에너지솔루션'; }
-      else if (fullTitle.includes('포스코') || fullTitle.includes('POSCO')) { symbol = '005490'; companyName = 'POSCO홀딩스'; }
-      else if (fullTitle.includes('KB금융') || fullTitle.includes('금융지주')) { symbol = '105560'; companyName = 'KB금융'; }
-      else if (fullTitle.includes('카카오')) { symbol = '035720'; companyName = '카카오'; }
-      else if (fullTitle.includes('알테오젠')) { symbol = '196170'; companyName = '알테오젠'; }
-      else if (fullTitle.includes('한화에어로')) { symbol = '012450'; companyName = '한화에어로스페이스'; }
+      // 비상장/지역행정/도서관/채용공고 등 노이즈 기사 감지 시 스킵
+      if (isJunkNews(fullTitle, extractedSummary)) continue;
+
+      // 정밀 종목 매칭 (전체 DB 종목명 대조)
+      const combinedText = `${fullTitle} ${extractedSummary}`;
+      const matched = matchStockFromText(combinedText, stockList);
+
+      // 특정 개별 기업이 아닌 거시/정책/증시 종합 기사는 '국내증시'(^KS11)로 분류 (오분류 방지)
+      const symbol = matched ? matched.symbol : '^KS11';
+      const companyName = matched ? matched.name : '국내증시';
 
       const id = 'kr_' + (artMatch ? `${offMatch[1]}_${artMatch[1]}` : Buffer.from(fullTitle).toString('base64').substring(0, 16));
-      const summary = `${companyName} 및 국내 증시 실시간 언론 보도입니다. 상세 내용은 출처 원문 기사를 통해 확인하시기 바랍니다.`;
-      const imp = analyzeImportance(fullTitle, summary, false);
+      let summary = (extractedSummary && extractedSummary.length >= 15) ? extractedSummary : `${companyName} 관련 주요 언론 보도 내용입니다.`;
+      let imp = analyzeImportance(fullTitle, summary, false);
+      let sentiment = 'neutral';
+      
+      if (geminiService.isConfigured()) {
+        try {
+          const aiRes = await geminiService.analyzeArticle({ title: fullTitle, content: extractedSummary, symbol, companyName, isUS: false });
+          if (aiRes) {
+            if (aiRes.isIrrelevant) continue; // 투자 무관/지역소음 기사 배제
+            if (aiRes.summary) summary = aiRes.summary;
+            if (aiRes.importance) imp = aiRes.importance;
+            if (aiRes.sentiment) sentiment = aiRes.sentiment;
+          }
+        } catch {}
+      }
+
+      if (imp <= 1) continue;
 
       parsedArticles.push({
         id,
@@ -262,7 +352,7 @@ async function fetchLiveKoreanNews() {
         source: sourceName,
         date: realPublishedDate,
         url: directUrl,
-        sentiment: 'positive',
+        sentiment,
         isDisclosure: 0,
         importance: imp
       });
@@ -332,21 +422,48 @@ async function fetchLiveUsNews() {
           const titleMatch = it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
           const linkMatch = it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
           const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
+          const descMatch = it.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
 
           const rawTitle = titleMatch ? titleMatch[1].trim() : '';
           const link = linkMatch ? linkMatch[1].trim() : '';
           const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().replace('T', ' ').substring(0, 16);
+          const rawDesc = descMatch ? cleanHtmlText(descMatch[1]) : '';
 
           if (!rawTitle || !link) continue;
 
           const translatedTitle = await translateToKorean(rawTitle);
+          const translatedDesc = rawDesc ? await translateToKorean(rawDesc) : '';
           const sourceName = 'Yahoo Finance US';
-          const companyName = sym;
-          const id = `us_${sym}_${hashString(link)}`;
-          const summary = `[${sym} 해외 주요 이슈] ${translatedTitle} 관련 실시간 외신 보도입니다.`;
-          const imp = analyzeImportance(translatedTitle, summary, false);
 
-          results.push({ id, symbol: sym, companyName, title: translatedTitle, summary, source: sourceName, date: pubDate, url: link, sentiment: 'positive', importance: imp });
+          // 실제 기사 제목 및 본문 내용에 기반한 정확한 티커 매칭
+          let matchedSym = sym;
+          let matchedName = sym;
+          const lowerCombined = (rawTitle + ' ' + rawDesc).toLowerCase();
+          if (lowerCombined.includes('apple') || rawTitle.includes('AAPL')) { matchedSym = 'AAPL'; matchedName = 'Apple'; }
+          else if (lowerCombined.includes('microsoft') || rawTitle.includes('MSFT')) { matchedSym = 'MSFT'; matchedName = 'Microsoft'; }
+          else if (lowerCombined.includes('nvidia') || rawTitle.includes('NVDA')) { matchedSym = 'NVDA'; matchedName = 'NVIDIA'; }
+          else if (lowerCombined.includes('tesla') || rawTitle.includes('TSLA')) { matchedSym = 'TSLA'; matchedName = 'Tesla'; }
+          else if (lowerCombined.includes('amazon') || rawTitle.includes('AMZN')) { matchedSym = 'AMZN'; matchedName = 'Amazon'; }
+          else if (lowerCombined.includes('alphabet') || lowerCombined.includes('google') || rawTitle.includes('GOOGL')) { matchedSym = 'GOOGL'; matchedName = 'Alphabet'; }
+          else if (lowerCombined.includes('meta ') || lowerCombined.includes('facebook')) { matchedSym = 'META'; matchedName = 'Meta'; }
+
+          const id = `us_${matchedSym}_${hashString(link)}`;
+          let summary = (translatedDesc && translatedDesc.length >= 10) ? translatedDesc : `[${matchedSym} 해외 주요 이슈] ${translatedTitle} 관련 실시간 외신 보도입니다.`;
+          let imp = analyzeImportance(translatedTitle, summary, false);
+          let sentiment = 'positive';
+
+          if (geminiService.isConfigured()) {
+            try {
+              const aiRes = await geminiService.analyzeArticle({ title: rawTitle, content: rawDesc, symbol: matchedSym, companyName: matchedName, isUS: true });
+              if (aiRes) {
+                if (aiRes.summary) summary = aiRes.summary;
+                if (aiRes.importance) imp = aiRes.importance;
+                if (aiRes.sentiment) sentiment = aiRes.sentiment;
+              }
+            } catch {}
+          }
+
+          results.push({ id, symbol: matchedSym, companyName: matchedName, title: translatedTitle, summary, source: sourceName, date: pubDate, url: link, sentiment, importance: imp });
         }
         return results;
       } catch {
@@ -548,8 +665,11 @@ async function searchLatestNewsForStock(symbol, companyName) {
 
     // 2) 국내 종목 실시간 언론 보도 뉴스 수집 (최대 5건)
     try {
-      const query = encodeURIComponent(`${name} when:5d`);
-      const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=ko&gl=KR&ceid=KR:ko`;
+      let query = `${name} when:5d`;
+      if (name.length <= 2) {
+        query = `"${name}" (주식 OR 주가 OR 실적 OR 공시 OR 반도체 OR 기업 OR 목표가) -구청 -구의회 -주민센터 -도서관 -복지관 -자립생활센터 when:5d`;
+      }
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
       const res = await fetch(rssUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
         signal: AbortSignal.timeout(4000)
@@ -578,9 +698,37 @@ async function searchLatestNewsForStock(symbol, companyName) {
           fullTitle = cleanHtmlText(fullTitle, '');
           if (!fullTitle) continue;
 
-          const summary = `${name} 관련 최신 언론 보도입니다. 상세 내용은 출처 원문 기사를 통해 확인하시기 바랍니다.`;
-          const importance = analyzeImportance(fullTitle, summary, false);
-          const sentiment = fullTitle.includes('상승') || fullTitle.includes('호실적') || fullTitle.includes('돌파') ? 'positive' : fullTitle.includes('하락') || fullTitle.includes('우려') ? 'negative' : 'neutral';
+          const descMatch = it.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
+          const rawDesc = descMatch ? cleanHtmlText(descMatch[1], fullTitle) : '';
+          
+          // 비상장/지역행정/도서관/채용공고 등 노이즈 기사이거나 행정구역(대덕구 등) 기사는 엄격 배제
+          if (isJunkNews(fullTitle, rawDesc)) continue;
+          if (name.length <= 2 && (fullTitle.includes(name + '구') || rawDesc.includes(name + '구'))) continue;
+
+          let summary = '';
+          if (rawDesc && rawDesc.length >= 20 && rawDesc !== fullTitle && !rawDesc.includes(fullTitle)) {
+            summary = rawDesc;
+          } else {
+            summary = `${name}의 '${fullTitle}' 관련 ${sourceName}의 주요 언론 보도입니다.`;
+          }
+
+          let importance = analyzeImportance(fullTitle, summary, false);
+          let sentiment = fullTitle.includes('상승') || fullTitle.includes('호실적') || fullTitle.includes('돌파') ? 'positive' : fullTitle.includes('하락') || fullTitle.includes('우려') ? 'negative' : 'neutral';
+
+          if (geminiService.isConfigured()) {
+            try {
+              const aiRes = await geminiService.analyzeArticle({ title: fullTitle, content: rawDesc, symbol, companyName: name, isUS: false });
+              if (aiRes) {
+                if (aiRes.isIrrelevant) continue; // 기업 투자와 무관한 기사는 절대 DB에 추가하지 않음
+                if (aiRes.summary) summary = aiRes.summary;
+                if (aiRes.importance) importance = aiRes.importance;
+                if (aiRes.sentiment) sentiment = aiRes.sentiment;
+              }
+            } catch {}
+          }
+
+          if (importance <= 1) continue;
+
           const id = `news_${symbol}_${Math.abs(hashString(link + fullTitle))}`;
 
           collectedItems.push({
@@ -613,10 +761,12 @@ async function searchLatestNewsForStock(symbol, companyName) {
           const titleMatch = it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
           const linkMatch = it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
           const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
+          const descMatch = it.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
 
           let title = (titleMatch ? titleMatch[1] : '').trim();
           const link = (linkMatch ? linkMatch[1] : '#').trim();
           const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
+          const rawDesc = descMatch ? cleanHtmlText(descMatch[1]) : '';
 
           title = cleanHtmlText(title, '');
           if (!title) continue;
@@ -628,7 +778,8 @@ async function searchLatestNewsForStock(symbol, companyName) {
           else if (link.includes('reuters.com')) sourceName = 'Reuters';
 
           const translatedTitle = await translateToKorean(title);
-          const summary = `${name} 관련 실시간 글로벌 금융 뉴스입니다. 원문 기사에서 상세 내용을 확인하실 수 있습니다.`;
+          const translatedDesc = rawDesc ? await translateToKorean(rawDesc) : '';
+          const summary = (translatedDesc && translatedDesc.length >= 10) ? translatedDesc : `${name} 관련 실시간 글로벌 금융 뉴스입니다.`;
 
           collectedItems.push({
             id: `us_${symbol}_${Math.abs(hashString(link))}`,

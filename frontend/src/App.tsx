@@ -388,6 +388,7 @@ export const App: React.FC = () => {
                 stocks={stocks}
                 quantMetrics={quantMetrics}
                 onSelectStock={handleSelectStock}
+                onNewsDeleted={() => setNews([])}
               />
             )}
           </>

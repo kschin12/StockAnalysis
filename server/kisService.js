@@ -1,6 +1,10 @@
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const altEnvPath = 'D:\\Projects\\StockAnalysis\\.env';
+if (fs.existsSync(altEnvPath)) {
+  require('dotenv').config({ path: altEnvPath, override: true });
+}
 
 const TOKEN_CACHE_PATH = path.join(__dirname, '..', 'data', 'kis_token.json');
 
