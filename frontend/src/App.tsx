@@ -41,7 +41,7 @@ export const App: React.FC = () => {
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [presets, setPresets] = useState<CustomPreset[]>([]);
   const [watchlist, setWatchlist] = useState<string[]>([]);
-  
+
   // 탭 변경 시 브라우저 히스토리에 푸시 (이전/다음 페이지 활성화)
   const handleTabChange = (tab: 'dashboard' | 'screener' | 'chart' | 'news') => {
     setActiveTab(tab);
@@ -66,14 +66,14 @@ export const App: React.FC = () => {
       window.removeEventListener('hashchange', handlePopState);
     };
   }, []);
-  
+
   // Real DB data states
   const [indices, setIndices] = useState<MarketIndex[]>([]);
   const [sectors, setSectors] = useState<SectorPerf[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [quantMetrics, setQuantMetrics] = useState<QuantMetrics | null>(null);
-  
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
@@ -163,7 +163,7 @@ export const App: React.FC = () => {
       }).catch((e) => console.warn('On-visit news sync error:', e));
     }
 
-    // 3) ⏱️ 실시간 시세 동기화: 첫 화면 접속 시 즉시 1회 실행 + 접속 중 1분(60초)마다 자동 갱신
+    // 3) ⏱️ 실시간 시세 동기화: 첫 화면 접속 시 즉시 1회 실행 + 접속 중 5분(300초)마다 자동 갱신
     triggerRealtimeCollection()
       .then(() => loadAllData())
       .catch((e) => console.warn('Initial price sync error:', e));
@@ -174,7 +174,7 @@ export const App: React.FC = () => {
           .then(() => loadAllData())
           .catch((e) => console.warn('1-min price poll error:', e));
       }
-    }, 60 * 1000); // 1분 주기
+    }, 300 * 1000); // 5분 주기
 
     return () => clearInterval(priceInterval);
   }, [loadAllData]);
