@@ -14,8 +14,12 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
     console.error('❌ SQLite 연결 실패:', err.message);
   } else {
     console.log('✅ SQLite 데이터베이스 연결 성공:', DB_PATH);
-    db.run('PRAGMA journal_mode = WAL;');
     db.run('PRAGMA busy_timeout = 30000;');
+    db.run('PRAGMA journal_mode = WAL;', (walErr) => {
+      if (walErr) {
+        db.run('PRAGMA journal_mode = DELETE;');
+      }
+    });
     db.run('PRAGMA synchronous = NORMAL;');
     initTablesAndSeed();
   }
