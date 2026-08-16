@@ -42,4 +42,5 @@ jobs:
             --cpu 1 \
             --min-instances 0 \
             --max-instances 2 \
+            --set-env-vars GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             --project ${{ env.PROJECT_ID }}

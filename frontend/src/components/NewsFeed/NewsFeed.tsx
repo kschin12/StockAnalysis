@@ -14,6 +14,7 @@ interface NewsFeedProps {
   quantMetrics?: QuantMetrics | null;
   onSelectStock: (symbol: string) => void;
   onNewsDeleted?: () => void;
+  initialSearch?: string;
 }
 
 export const NewsFeed: React.FC<NewsFeedProps> = ({
@@ -22,7 +23,8 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   sectors = [],
   stocks = [],
   onSelectStock,
-  onNewsDeleted
+  onNewsDeleted,
+  initialSearch = ''
 }) => {
   // --- 필터 상태 (드롭다운 리스트 기반) ---
   const [filterType, setFilterType] = useState<'ALL' | 'NEWS' | 'DISCLOSURE' | 'IMPORTANT'>('ALL');
@@ -30,6 +32,14 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   const [selectedSentiment, setSelectedSentiment] = useState<string>('ALL');
   const [selectedSource, setSelectedSource] = useState<string>('ALL');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSelectedStock(initialSearch);
+      setSearchKeyword(initialSearch);
+      setCurrentPage(1);
+    }
+  }, [initialSearch]);
 
   // --- 정렬 상태 ---
   const [sortField, setSortField] = useState<SortField>('date');

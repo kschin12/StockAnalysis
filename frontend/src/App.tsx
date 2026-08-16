@@ -39,6 +39,7 @@ export const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'screener' | 'chart' | 'news'>(() => parseHash().tab);
   const [selectedStockSymbol, setSelectedStockSymbol] = useState<string>(() => parseHash().symbol);
+  const [initialNewsSearch, setInitialNewsSearch] = useState<string>('');
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [presets, setPresets] = useState<CustomPreset[]>([]);
   const [watchlist, setWatchlist] = useState<string[]>(() => getWatchlist());
@@ -376,7 +377,11 @@ export const App: React.FC = () => {
                 stock={selectedStock}
                 news={news}
                 allStocks={stocks}
-                onSelectStock={setSelectedStockSymbol}
+                onSelectStock={handleSelectStock}
+                onNavigateToNews={(symbol, name) => {
+                  setInitialNewsSearch(name || symbol);
+                  handleTabChange('news');
+                }}
               />
             )}
 
@@ -389,6 +394,7 @@ export const App: React.FC = () => {
                 quantMetrics={quantMetrics}
                 onSelectStock={handleSelectStock}
                 onNewsDeleted={() => setNews([])}
+                initialSearch={initialNewsSearch}
               />
             )}
           </>
