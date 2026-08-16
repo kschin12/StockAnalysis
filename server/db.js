@@ -98,9 +98,13 @@ function initTablesAndSeed() {
         date TEXT,
         url TEXT,
         sentiment TEXT,
-        isDisclosure INTEGER DEFAULT 0
+        isDisclosure INTEGER DEFAULT 0,
+        importance INTEGER DEFAULT 3
       )
     `);
+
+    // 기존 DB 마이그레이션 (컬럼 누락 방지)
+    db.run(`ALTER TABLE news ADD COLUMN importance INTEGER DEFAULT 3`, () => {});
 
     // 5. Watchlist
     db.run(`
