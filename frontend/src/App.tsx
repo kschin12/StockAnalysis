@@ -138,6 +138,21 @@ export const App: React.FC = () => {
     }
   };
 
+  const [isNewsSyncing, setIsNewsSyncing] = useState<boolean>(false);
+
+  const handleNewsSync = async () => {
+    setIsNewsSyncing(true);
+    try {
+      await triggerNewsCollection();
+      const freshNews = await fetchNews();
+      setNews(freshNews);
+    } catch (e) {
+      console.error('뉴스 동기화 실패:', e);
+    } finally {
+      setIsNewsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     setPresets(getSavedPresets());
     loadAllData();
@@ -154,14 +169,10 @@ export const App: React.FC = () => {
       }).catch((e) => console.warn('Daily DART sync error:', e));
     }
 
-    // 2) 📰 뉴스 & DART 공시 동기화: 화면 접속 시 1회 데이터 수집 후 DB 저장
-    const sessionKey = `news_synced_${today}`;
-    if (!sessionStorage.getItem(sessionKey)) {
-      triggerNewsCollection().then(() => {
-        sessionStorage.setItem(sessionKey, '1');
-        fetchNews().then(n => setNews(n));
-      }).catch((e) => console.warn('On-visit news sync error:', e));
-    }
+    // 2) 📰 뉴스 & DART 공시 동기화: 화면 접속 시 즉시 최신 뉴스 68+건 병렬 수집
+    triggerNewsCollection()
+      .then(() => fetchNews().then(n => setNews(n)))
+      .catch((e) => console.warn('On-visit news sync error:', e));
 
     // 3) ⏱️ 실시간 시세 동기화: 첫 화면 접속 시 즉시 1회 실행 + 접속 중 5분(300초)마다 자동 갱신
     triggerRealtimeCollection()
@@ -172,7 +183,7 @@ export const App: React.FC = () => {
       if (document.visibilityState === 'visible') {
         triggerRealtimeCollection()
           .then(() => loadAllData())
-          .catch((e) => console.warn('1-min price poll error:', e));
+          .catch((e) => console.warn('5-min price poll error:', e));
       }
     }, 300 * 1000); // 5분 주기
 
@@ -374,6 +385,8 @@ export const App: React.FC = () => {
                 stocks={stocks}
                 quantMetrics={quantMetrics}
                 onSelectStock={handleSelectStock}
+                onRefreshNews={handleNewsSync}
+                isSyncingNews={isNewsSyncing}
               />
             )}
           </>
