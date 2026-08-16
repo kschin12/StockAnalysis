@@ -44,6 +44,9 @@ export const StockTable: React.FC<StockTableProps> = ({
     } else if (activeCategory === 'rise') {
       setSortField('changeRate');
       setSortAsc(false);
+    } else if (activeCategory === 'fall') {
+      setSortField('changeRate');
+      setSortAsc(true);
     } else if (activeCategory === 'market_cap' || activeCategory === 'all') {
       setSortField('marketCap');
       setSortAsc(false);

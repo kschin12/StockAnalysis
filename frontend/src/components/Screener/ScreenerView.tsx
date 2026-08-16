@@ -97,11 +97,11 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
       return sorted.slice(0, topCount);
     }
     if (activeCategory === 'rise') {
-      const sorted = [...pool].sort((a, b) => (b.changeRate || 0) - (a.changeRate || 0));
+      const sorted = [...pool].sort((a, b) => (Number(b.changeRate) || 0) - (Number(a.changeRate) || 0));
       return sorted.slice(0, 20);
     }
     if (activeCategory === 'fall') {
-      const sorted = [...pool].sort((a, b) => (a.changeRate || 0) - (b.changeRate || 0));
+      const sorted = [...pool].sort((a, b) => (Number(a.changeRate) || 0) - (Number(b.changeRate) || 0));
       return sorted.slice(0, 20);
     }
     return pool;
@@ -109,50 +109,36 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
   const baseStocks = getCategoryBaseStocks();
   const filteredStocks = baseStocks.filter(s => {
-    // 1. Market (코스피 vs 코스닥 정밀 분기)
-    if (filters.market !== 'ALL') {
-      if (filters.market === 'US') {
-        if (s.market !== 'US' && s.currency !== 'USD') return false;
-      } else if (filters.market === 'KOSPI') {
-        const isKr = s.market === 'KRX' || s.currency === 'KRW';
-        if (!isKr || KOSDAQ_SYMBOLS.has(s.symbol)) return false;
-      } else if (filters.market === 'KOSDAQ') {
-        const isKr = s.market === 'KRX' || s.currency === 'KRW';
-        if (!isKr || !KOSDAQ_SYMBOLS.has(s.symbol)) return false;
-      } else if (filters.market === 'KRX') {
-        if (s.market !== 'KRX' && s.currency !== 'KRW') return false;
-      }
+    // 1. Search Query (모든 탭 공통 적용)
+    if (filters.searchQuery && filters.searchQuery.trim()) {
+      const q = filters.searchQuery.toLowerCase();
+      const matchName = s.name ? s.name.toLowerCase().includes(q) : false;
+      const matchSymbol = s.symbol ? s.symbol.toLowerCase().includes(q) : false;
+      if (!matchName && !matchSymbol) return false;
     }
-    // 2. Asset Type
+
+    // 2. Asset Type (주식 vs ETF)
     if (filters.assetType !== 'ALL' && s.assetType !== filters.assetType) {
       return false;
     }
-    // 3. PER
-    if (filters.maxPer !== '' && (s.per === null || s.per > filters.maxPer)) {
-      return false;
-    }
-    // 4. PBR
-    if (filters.maxPbr !== '' && (s.pbr === null || s.pbr > filters.maxPbr)) {
-      return false;
-    }
-    // 5. ROE
-    if (filters.minRoe !== '' && (s.roe === null || s.roe < filters.minRoe)) {
-      return false;
-    }
-    // 6. Dividend
-    if (filters.minDividend !== '' && (s.dividendYield === null || s.dividendYield < filters.minDividend)) {
-      return false;
-    }
-    // 7. Debt Ratio
-    if (filters.maxDebtRatio !== '' && (s.debtRatio !== undefined && s.debtRatio !== null && s.debtRatio > filters.maxDebtRatio)) {
-      return false;
-    }
-    // 8. Search Query
-    if (filters.searchQuery.trim()) {
-      const q = filters.searchQuery.toLowerCase();
-      const matchName = s.name.toLowerCase().includes(q);
-      const matchSymbol = s.symbol.toLowerCase().includes(q);
-      if (!matchName && !matchSymbol) return false;
+
+    // 3. 세부 정량 퀀트 지표 필터링 (전체 종목 커스텀 스크리닝 시 적용)
+    if (activeCategory === 'all') {
+      if (filters.maxPer !== '' && (s.per === null || s.per === undefined || s.per > Number(filters.maxPer))) {
+        return false;
+      }
+      if (filters.maxPbr !== '' && (s.pbr === null || s.pbr === undefined || s.pbr > Number(filters.maxPbr))) {
+        return false;
+      }
+      if (filters.minRoe !== '' && (s.roe === null || s.roe === undefined || s.roe < Number(filters.minRoe))) {
+        return false;
+      }
+      if (filters.minDividend !== '' && (s.dividendYield === null || s.dividendYield === undefined || s.dividendYield < Number(filters.minDividend))) {
+        return false;
+      }
+      if (filters.maxDebtRatio !== '' && (s.debtRatio !== undefined && s.debtRatio !== null && s.debtRatio > Number(filters.maxDebtRatio))) {
+        return false;
+      }
     }
 
     return true;
