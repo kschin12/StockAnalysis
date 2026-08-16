@@ -53,15 +53,13 @@ function cleanHtmlText(text, fallbackTitle = '') {
 function extractDartKeyContents(title, rawBody, companyName) {
   if (!rawBody || rawBody.length < 10) return '';
 
-  // 1. 실적 공시 규칙: 특별한 사항(흑자전환, 적자전환, 사상 최대, 어닝서프라이즈, 손익구조 30%이상 변동 등)이 없으면 요약 생략
   const isEarnings = title.includes('영업(잠정)실적') || title.includes('영업실적') || title.includes('재무제표') || title.includes('분기보고서') || title.includes('사업보고서');
   const hasSpecialEvent = rawBody.includes('흑자전환') || rawBody.includes('적자전환') || rawBody.includes('사상 최대') || rawBody.includes('어닝서프라이즈') || rawBody.includes('어닝쇼크') || rawBody.includes('30%') || title.includes('손익구조');
 
   if (isEarnings && !hasSpecialEvent) {
-    return ''; // 특별한 사항이 없는 일반 실적은 요약 생략
+    return '';
   }
 
-  // 2. DART 본문에서 "주요내용", "내용", "주요사항", "결정사항", "변동원인" 영역 추출
   let extracted = '';
   const contentMatch = rawBody.match(/(?:2\.\s*(?:주요)?내용|주요내용|주요사항|결정사항|변동원인)([\s\S]*?)(?:3\.|4\.|5\.|근거규정|※|기타\s*투자판단|$)/i);
   if (contentMatch && contentMatch[1].trim().length >= 10) {
@@ -75,7 +73,6 @@ function extractDartKeyContents(title, rawBody, companyName) {
     }
   }
 
-  // 불필요한 번호, 규정 문구, 하이픈 정리
   let cleaned = extracted
     .replace(/^2\.\s*(?:주요)?내용\s*/i, '')
     .replace(/근거규정[\s\S]*$/gi, '')
@@ -101,14 +98,12 @@ function summarizeRealContent(title, realBody, companyName, isDisclosure) {
     return extractDartKeyContents(title, realBody, comp);
   }
 
-  // 일반 뉴스 기사 중 실적 관련: 특별한 사항(흑자전환, 사상 최대, 어닝서프라이즈 등)이 없으면 요약 생략
   const isEarningsNews = title.includes('실적') || title.includes('영업익') || title.includes('매출');
   const hasSpecialNews = title.includes('흑자전환') || title.includes('적자전환') || title.includes('사상 최대') || title.includes('서프라이즈') || title.includes('쇼크') || title.includes('급증');
   if (isEarningsNews && !hasSpecialNews) {
     return '';
   }
 
-  // 불필요한 기자명, 저작권, 네비게이션 텍스트 제거
   let cleaned = realBody
     .replace(/\[[^\]]*\]/g, ' ')
     .replace(/\([^\)]*기자\)/g, ' ')
@@ -118,7 +113,6 @@ function summarizeRealContent(title, realBody, companyName, isDisclosure) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 문장 단위 분리
   const sentences = cleaned.split(/(?<=[.?!])\s+/).filter(s => {
     const trimmed = s.trim();
     return trimmed.length >= 15 && 
@@ -147,7 +141,7 @@ async function fetchRealDartNoticeBody(no) {
     const url = `https://finance.naver.com/item/news_notice_read_content.naver?no=${no}`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      signal: AbortSignal.timeout(4000)
+      signal: AbortSignal.timeout(3000)
     });
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
@@ -174,7 +168,7 @@ async function fetchRealNewsArticleBody(url, title) {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(4000)
+      signal: AbortSignal.timeout(3000)
     });
     if (!res.ok) return null;
     const html = await res.text();
@@ -205,70 +199,81 @@ async function fetchRealNewsArticleBody(url, title) {
   return null;
 }
 
-// 1. 국내 주요 증시 실시간 뉴스 수집 (네이버 금융 실시간 주요뉴스 직결 링크 스크래핑)
+// 1. 국내 주요 증시 실시간 뉴스 수집 (네이버 금융 실시간 주요 뉴스 20건 직결 링크 수집)
 async function fetchLiveKoreanNews() {
   let count = 0;
   try {
     const res = await fetch('https://finance.naver.com/news/mainnews.naver', {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      signal: AbortSignal.timeout(6000)
+      signal: AbortSignal.timeout(5000)
     });
     if (!res.ok) return 0;
     const buf = await res.arrayBuffer();
     const html = iconv.decode(buf);
 
-    const matches = [...html.matchAll(/<li[^>]*class="block1"[^>]*>([\s\S]*?)<\/li>/gi)];
+    const matches = [...html.matchAll(/<dd[^>]*class="articleSubject"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
 
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const parsedArticles = [];
+    for (const m of matches) {
+      const href = m[1];
+      const fullTitle = m[2].replace(/<[^>]+>/g, '').trim();
+      if (!fullTitle) continue;
 
-    for (const m of matches.slice(0, 15)) {
-      const titMatch = m[1].match(/<dd[^>]*class="articleSubject"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
-      const pressMatch = m[1].match(/<span[^>]*class="press"[^>]*>([\s\S]*?)<\/span>/i);
-      const dateMatch = m[1].match(/<span[^>]*class="wdate"[^>]*>([\s\S]*?)<\/span>/i);
+      const offMatch = href.match(/office_id=([0-9]+)/);
+      const artMatch = href.match(/article_id=([0-9]+)/);
+      const directUrl = (offMatch && artMatch)
+        ? `https://n.news.naver.com/mnews/article/${offMatch[1]}/${artMatch[1]}`
+        : `https://finance.naver.com${href}`;
 
-      if (titMatch) {
-        const href = titMatch[1];
-        let fullTitle = titMatch[2].replace(/<[^>]+>/g, '').trim();
-        const press = pressMatch ? pressMatch[1].replace(/<[^>]+>/g, '').trim() : '국내 언론사';
-        const date = dateMatch ? dateMatch[1].replace(/<[^>]+>/g, '').trim() : new Date().toISOString().slice(0, 16);
+      // 종목 매칭
+      let symbol = '005930';
+      let companyName = '삼성전자';
+      if (fullTitle.includes('하이닉스')) { symbol = '000660'; companyName = 'SK하이닉스'; }
+      else if (fullTitle.includes('현대차') || fullTitle.includes('제네시스')) { symbol = '005380'; companyName = '현대차'; }
+      else if (fullTitle.includes('셀트리온')) { symbol = '068270'; companyName = '셀트리온'; }
+      else if (fullTitle.includes('네이버') || fullTitle.includes('NAVER')) { symbol = '035420'; companyName = 'NAVER'; }
+      else if (fullTitle.includes('LG엔솔') || fullTitle.includes('LG에너지')) { symbol = '373220'; companyName = 'LG에너지솔루션'; }
+      else if (fullTitle.includes('포스코') || fullTitle.includes('POSCO')) { symbol = '005490'; companyName = 'POSCO홀딩스'; }
+      else if (fullTitle.includes('KB금융') || fullTitle.includes('금융지주')) { symbol = '105560'; companyName = 'KB금융'; }
+      else if (fullTitle.includes('카카오')) { symbol = '035720'; companyName = '카카오'; }
+      else if (fullTitle.includes('알테오젠')) { symbol = '196170'; companyName = '알테오젠'; }
+      else if (fullTitle.includes('한화에어로')) { symbol = '012450'; companyName = '한화에어로스페이스'; }
 
-        // 네이버 뉴스 직결 링크 생성
-        const offMatch = href.match(/office_id=([0-9]+)/);
-        const artMatch = href.match(/article_id=([0-9]+)/);
-        const directUrl = (offMatch && artMatch)
-          ? `https://n.news.naver.com/mnews/article/${offMatch[1]}/${artMatch[1]}`
-          : `https://finance.naver.com${href}`;
+      const id = 'kr_' + (artMatch ? `${offMatch[1]}_${artMatch[1]}` : Buffer.from(fullTitle).toString('base64').substring(0, 16));
+      const summary = `${companyName} 및 국내 증시 실시간 언론 보도입니다. 상세 내용은 출처 원문 기사를 통해 확인하시기 바랍니다.`;
+      const imp = analyzeImportance(fullTitle, summary, false);
+      const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
-        // 종목 매칭
-        let symbol = '005930';
-        let companyName = '삼성전자';
-        if (fullTitle.includes('하이닉스')) { symbol = '000660'; companyName = 'SK하이닉스'; }
-        else if (fullTitle.includes('현대차') || fullTitle.includes('제네시스')) { symbol = '005380'; companyName = '현대차'; }
-        else if (fullTitle.includes('셀트리온')) { symbol = '068270'; companyName = '셀트리온'; }
-        else if (fullTitle.includes('네이버') || fullTitle.includes('NAVER')) { symbol = '035420'; companyName = 'NAVER'; }
-        else if (fullTitle.includes('LG엔솔') || fullTitle.includes('LG에너지')) { symbol = '373220'; companyName = 'LG에너지솔루션'; }
-        else if (fullTitle.includes('포스코') || fullTitle.includes('POSCO')) { symbol = '005490'; companyName = 'POSCO홀딩스'; }
-        else if (fullTitle.includes('KB금융') || fullTitle.includes('금융지주')) { symbol = '105560'; companyName = 'KB금융'; }
-        else if (fullTitle.includes('카카오')) { symbol = '035720'; companyName = '카카오'; }
-
-        // 실제 기사 본문 크롤링 후 2문장 요약
-        const realBody = await fetchRealNewsArticleBody(directUrl, fullTitle);
-        const summary = realBody 
-          ? summarizeRealContent(fullTitle, realBody, companyName, false)
-          : `${companyName} 관련 최신 언론 보도입니다. 상세 내용은 출처 원문 기사를 확인하시기 바랍니다.`;
-
-        const id = 'kr_' + (artMatch ? `${offMatch[1]}_${artMatch[1]}` : Buffer.from(fullTitle).toString('base64').substring(0, 16));
-        const imp = analyzeImportance(fullTitle, summary, false);
-
-        stmt.run([id, symbol, companyName, fullTitle, summary, press, date, directUrl, 'positive', 0, imp]);
-        count++;
-      }
+      parsedArticles.push({
+        id,
+        symbol,
+        companyName,
+        title: fullTitle,
+        summary,
+        source: '네이버증권',
+        date: dateStr,
+        url: directUrl,
+        sentiment: 'positive',
+        isDisclosure: 0,
+        importance: imp
+      });
     }
 
-    stmt.finalize();
+    if (parsedArticles.length > 0) {
+      await new Promise(resolve => {
+        db.serialize(() => {
+          const stmt = db.prepare(`
+            INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const a of parsedArticles) {
+            stmt.run([a.id, a.symbol, a.companyName, a.title, a.summary, a.source, a.date, a.url, a.sentiment, 0, a.importance]);
+            count++;
+          }
+          stmt.finalize(() => resolve());
+        });
+      });
+    }
   } catch (err) {
     console.warn('[Live Korean News] Fetch error:', err.message);
   }
@@ -280,7 +285,7 @@ async function translateToKorean(text) {
   if (!text) return text;
   try {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=${encodeURIComponent(text)}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) return text;
     const json = await res.json();
     if (json && json[0]) {
@@ -292,57 +297,73 @@ async function translateToKorean(text) {
   }
 }
 
-// 2. 미국 빅테크 실시간 뉴스 수집 (Yahoo Finance Direct RSS 퍼머링크)
+// 2. 미국 빅테크 실시간 뉴스 수집 (Yahoo Finance Direct RSS 병렬 수집)
 async function fetchLiveUsNews() {
   const targetSymbols = ['NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN'];
   let count = 0;
 
   try {
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const usPromises = targetSymbols.map(async (sym) => {
+      try {
+        const url = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${sym}`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
+        if (!res.ok) return [];
 
-    for (const sym of targetSymbols) {
-      const url = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${sym}`;
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000) });
-      if (!res.ok) continue;
+        const xml = await res.text();
+        const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+        const results = [];
 
-      const xml = await res.text();
-      const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+        for (const it of items.slice(0, 3)) {
+          const titleMatch = it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+          const linkMatch = it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
+          const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
 
-      for (const it of items.slice(0, 2)) {
-        const titleMatch = it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
-        const linkMatch = it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
-        const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
+          let title = (titleMatch ? titleMatch[1] : '').trim();
+          const link = (linkMatch ? linkMatch[1] : '#').trim();
+          const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
 
-        let title = (titleMatch ? titleMatch[1] : '').trim();
-        const link = (linkMatch ? linkMatch[1] : '#').trim();
-        const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
+          title = cleanHtmlText(title, '');
+          if (!title) continue;
 
-        title = cleanHtmlText(title, '');
-        if (!title) continue;
+          let companyName = sym === 'NVDA' ? 'NVIDIA' : sym === 'TSLA' ? 'Tesla' : sym === 'AAPL' ? 'Apple' : sym === 'MSFT' ? 'Microsoft' : sym === 'GOOGL' ? 'Alphabet' : 'Amazon';
+          let sourceName = 'Yahoo Finance';
+          if (link.includes('fool.com')) sourceName = 'The Motley Fool';
+          else if (link.includes('247wallst.com')) sourceName = '24/7 Wall St.';
+          else if (link.includes('bloomberg.com')) sourceName = 'Bloomberg';
+          else if (link.includes('reuters.com')) sourceName = 'Reuters';
 
-        let companyName = sym === 'NVDA' ? 'NVIDIA' : sym === 'TSLA' ? 'Tesla' : sym === 'AAPL' ? 'Apple' : sym === 'MSFT' ? 'Microsoft' : sym === 'GOOGL' ? 'Alphabet' : 'Amazon';
-        let sourceName = 'Yahoo Finance';
-        if (link.includes('fool.com')) sourceName = 'The Motley Fool';
-        else if (link.includes('247wallst.com')) sourceName = '24/7 Wall St.';
-        else if (link.includes('bloomberg.com')) sourceName = 'Bloomberg';
-        else if (link.includes('reuters.com')) sourceName = 'Reuters';
-        else if (link.includes('cnbc.com')) sourceName = 'CNBC';
+          const translatedTitle = await translateToKorean(title);
+          const summary = `${companyName} 관련 글로벌 금융 및 증시 실시간 속보입니다. 상세 내용은 출처 원문 기사를 참조하시기 바랍니다.`;
+          const id = 'us_' + Buffer.from(sym + title).toString('base64').substring(0, 20);
+          const imp = analyzeImportance(translatedTitle, summary, false);
 
-        const translatedTitle = await translateToKorean(title);
-        const summary = `${companyName} 관련 글로벌 금융 및 증시 실시간 속보입니다. 상세 내용은 출처 원문 기사를 참조하시기 바랍니다.`;
-
-        const id = 'us_' + Buffer.from(sym + title).toString('base64').substring(0, 20);
-        const imp = analyzeImportance(translatedTitle, summary, false);
-
-        stmt.run([id, sym, companyName, translatedTitle, summary, sourceName, pubDate, link, 'positive', 0, imp]);
-        count++;
+          results.push({ id, symbol: sym, companyName, title: translatedTitle, summary, source: sourceName, date: pubDate, url: link, sentiment: 'positive', importance: imp });
+        }
+        return results;
+      } catch {
+        return [];
       }
-    }
+    });
 
-    stmt.finalize();
+    const allUs = (await Promise.allSettled(usPromises))
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
+    if (allUs.length > 0) {
+      await new Promise(resolve => {
+        db.serialize(() => {
+          const stmt = db.prepare(`
+            INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const u of allUs) {
+            stmt.run([u.id, u.symbol, u.companyName, u.title, u.summary, u.source, u.date, u.url, u.sentiment, 0, u.importance]);
+            count++;
+          }
+          stmt.finalize(() => resolve());
+        });
+      });
+    }
   } catch (err) {
     console.warn('[Live US News] Fetch error:', err.message);
   }
@@ -350,7 +371,7 @@ async function fetchLiveUsNews() {
   return count;
 }
 
-// 3. DART / 거래소 전자공시 실시간 수집 (실제 공시 본문 직접 스크래핑 & 직결 링크)
+// 3. DART / 거래소 전자공시 실시간 병렬 수집 (실제 공시 본문 직결 링크)
 async function fetchLiveDartDisclosures() {
   const targetSymbols = [
     { symbol: '005930', name: '삼성전자' },
@@ -365,25 +386,21 @@ async function fetchLiveDartDisclosures() {
     { symbol: '051910', name: 'LG화학' }
   ];
 
-  const liveDisclosures = [];
-
-  for (const item of targetSymbols) {
+  const dartPromises = targetSymbols.map(async (item) => {
     try {
       const url = `https://finance.naver.com/item/news_notice.naver?code=${item.symbol}`;
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(4000)
       });
-      if (!res.ok) continue;
+      if (!res.ok) return [];
 
       const buffer = await res.arrayBuffer();
       const html = iconv.decode(buffer);
-
       const trMatches = [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
-      let count = 0;
+      const notices = [];
 
-      for (const tr of trMatches) {
-        if (count >= 5) break; // 종목당 최대 5건
+      for (const tr of trMatches.slice(0, 4)) {
         const content = tr[1];
         if (!content.includes('news_notice_read')) continue;
 
@@ -401,13 +418,9 @@ async function fetchLiveDartDisclosures() {
 
           const directNoticeUrl = `https://finance.naver.com/item/news_notice_read.naver?no=${no}&code=${code}`;
           const formattedTitle = `[공시] ${rawTitle}`;
+          const summary = `${item.name}의 한국거래소 및 금융감독원 DART 공식 접수 보고서입니다. 주요 경영 및 재무 변동 사항이 포함되어 있습니다.`;
 
-          const realNoticeBody = await fetchRealDartNoticeBody(no);
-          const summary = realNoticeBody 
-            ? summarizeRealContent(formattedTitle, realNoticeBody, item.name, true)
-            : `${item.name}의 한국거래소 및 금융감독원 DART 공식 접수 보고서입니다. 주요 경영 및 재무 변동 사항이 포함되어 있습니다.`;
-
-          liveDisclosures.push({
+          notices.push({
             id: `dart_${code}_${no}`,
             symbol: code,
             companyName: item.name,
@@ -420,30 +433,34 @@ async function fetchLiveDartDisclosures() {
             isDisclosure: 1,
             importance: 5
           });
-          count++;
         }
       }
-    } catch (err) {
-      console.warn(`[newsCollector] DART disclosure fetch warning (${item.symbol}):`, err.message);
+      return notices;
+    } catch {
+      return [];
     }
+  });
+
+  const allDisclosures = (await Promise.allSettled(dartPromises))
+    .filter(r => r.status === 'fulfilled')
+    .flatMap(r => r.value);
+
+  if (allDisclosures.length > 0) {
+    await new Promise(resolve => {
+      db.serialize(() => {
+        const stmt = db.prepare(`
+          INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const d of allDisclosures) {
+          stmt.run([d.id, d.symbol, d.companyName, d.title, d.summary, d.source, d.date, d.url, d.sentiment, 1, d.importance]);
+        }
+        stmt.finalize(() => resolve());
+      });
+    });
   }
 
-  return new Promise((resolve) => {
-    if (liveDisclosures.length === 0) return resolve(0);
-
-    db.serialize(() => {
-      const stmt = db.prepare(`
-        INSERT OR REPLACE INTO news (id, symbol, companyName, title, summary, source, date, url, sentiment, isDisclosure, importance)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const d of liveDisclosures) {
-        stmt.run([d.id, d.symbol, d.companyName, d.title, d.summary, d.source, d.date, d.url, d.sentiment, 1, d.importance]);
-      }
-
-      stmt.finalize(() => resolve(liveDisclosures.length));
-    });
-  });
+  return allDisclosures.length;
 }
 
 function hashString(str) {
@@ -455,20 +472,19 @@ function hashString(str) {
   return hash;
 }
 
-// 4. 개별 종목 최신 뉴스 & 공시 온디맨드 실시간 검색 (직결 링크 & 100% 실시간 갱신)
+// 4. 개별 종목 최신 뉴스 & 공시 온디맨드 실시간 검색 (최대 10건 반환)
 async function searchLatestNewsForStock(symbol, companyName) {
   if (!symbol) return [];
   const name = companyName || symbol;
   const isKr = /^[0-9]{6}$/.test(symbol);
   const collectedItems = [];
 
-  // 1) 국내 종목인 경우: 네이버 증권 종목 DART 공시 실시간 수집
   if (isKr) {
     try {
       const noticeUrl = `https://finance.naver.com/item/news_notice.naver?code=${symbol}`;
       const res = await fetch(noticeUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(4000)
       });
       if (res.ok) {
         const buffer = await res.arrayBuffer();
@@ -477,7 +493,7 @@ async function searchLatestNewsForStock(symbol, companyName) {
 
         let addedCount = 0;
         for (const tr of trMatches) {
-          if (addedCount >= 5) break;
+          if (addedCount >= 6) break;
           const content = tr[1];
           if (!content.includes('news_notice_read')) continue;
           const noMatch = content.match(/news_notice_read\.naver\?no=([0-9]+)&(?:amp;)?code=([0-9A-Za-z]+)/i);
@@ -493,11 +509,7 @@ async function searchLatestNewsForStock(symbol, companyName) {
             const dateStr = dateMatch ? dateMatch[1].replace(/<[^>]+>/g, '').trim() : new Date().toISOString().slice(0, 10);
             const directNoticeUrl = `https://finance.naver.com/item/news_notice_read.naver?no=${no}&code=${code}`;
             const formattedTitle = `[공시] ${rawTitle}`;
-
-            const realNoticeBody = await fetchRealDartNoticeBody(no);
-            const summary = realNoticeBody 
-              ? summarizeRealContent(formattedTitle, realNoticeBody, name, true)
-              : `${name}의 한국거래소 및 금융감독원 DART 공식 접수 보고서입니다. 주요 경영 및 재무 변동 사항이 포함되어 있습니다.`;
+            const summary = `${name}의 한국거래소 및 금융감독원 DART 공식 접수 보고서입니다. 주요 경영 및 재무 변동 사항이 포함되어 있습니다.`;
 
             collectedItems.push({
               id: `dart_${code}_${no}`,
@@ -520,15 +532,14 @@ async function searchLatestNewsForStock(symbol, companyName) {
       console.warn(`[searchLatestNews] DART notice error for ${symbol}:`, err.message);
     }
   } else {
-    // 2) 미국 종목인 경우: Yahoo Finance Direct RSS 기사 수집
     try {
       const url = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${symbol}`;
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000) });
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
       if (res.ok) {
         const xml = await res.text();
         const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
 
-        for (const it of items.slice(0, 5)) {
+        for (const it of items.slice(0, 6)) {
           const titleMatch = it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
           const linkMatch = it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
           const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
@@ -569,7 +580,6 @@ async function searchLatestNewsForStock(symbol, companyName) {
     }
   }
 
-  // 3) DB 저장
   if (collectedItems.length > 0) {
     await new Promise(resolve => {
       db.serialize(() => {
@@ -585,7 +595,6 @@ async function searchLatestNewsForStock(symbol, companyName) {
     });
   }
 
-  // 4) 해당 종목 최신 10건(기존 5건 + 추가 5건) 반환
   return new Promise((resolve, reject) => {
     db.all('SELECT * FROM news WHERE symbol = ? ORDER BY isDisclosure DESC, date DESC, importance DESC LIMIT 10', [symbol], (err, rows) => {
       if (err) return reject(err);
@@ -598,14 +607,15 @@ async function searchLatestNewsForStock(symbol, companyName) {
   });
 }
 
-// 전체 실시간 뉴스 & 공시 동기화 실행 함수
+// 전체 실시간 뉴스 & 공시 동기화 실행 함수 (초고속 병렬 실행)
 async function syncAllRealNews() {
-  console.log('🔄 실시간 실제 뉴스 및 공시 수집 시작 (실 본문 기반 정밀 요약)...');
-  await new Promise(resolve => db.run('DELETE FROM news', () => resolve()));
-  const krCount = await fetchLiveKoreanNews();
-  const usCount = await fetchLiveUsNews();
-  const dartCount = await fetchLiveDartDisclosures();
-  console.log(`✅ 실시간 뉴스 수집 완료: 국내 ${krCount}건, 미국 ${usCount}건, DART ${dartCount}건`);
+  console.log('🔄 실시간 실제 뉴스 및 공시 초고속 병렬 수집 시작...');
+  const [krCount, usCount, dartCount] = await Promise.all([
+    fetchLiveKoreanNews(),
+    fetchLiveUsNews(),
+    fetchLiveDartDisclosures()
+  ]);
+  console.log(`✅ 실시간 뉴스 수집 완료: 국내 ${krCount}건, 미국 ${usCount}건, DART ${dartCount}건 (총 ${krCount + usCount + dartCount}건)`);
   return { krCount, usCount, dartCount, total: krCount + usCount + dartCount };
 }
 
