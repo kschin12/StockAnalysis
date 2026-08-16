@@ -6,7 +6,7 @@ import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
 import { getSavedPresets, saveCustomPreset, deleteCustomPreset } from './utils/storage';
-import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerDartCollection, triggerNewsCollection } from './api/stockApi';
+import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerNewsCollection } from './api/stockApi';
 import { RefreshCw } from 'lucide-react';
 
 const INITIAL_FILTERS: FilterState = {
@@ -77,7 +77,6 @@ export const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
-  const [isDartSyncing, setIsDartSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
   const loadAllData = useCallback(async () => {
@@ -122,22 +121,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDartSync = async () => {
-    setIsDartSyncing(true);
-    try {
-      const res = await triggerDartCollection();
-      if (res.success) {
-        await loadAllData();
-        alert(`✅ DART 재무제표 동기화 완료! (${res.syncedCount}개 기업 실적 반영)`);
-      }
-    } catch (e) {
-      console.error('DART 동기화 실패:', e);
-      alert('DART 재무제표 동기화에 실패했습니다.');
-    } finally {
-      setIsDartSyncing(false);
-    }
-  };
-
   const [isNewsSyncing, setIsNewsSyncing] = useState<boolean>(false);
 
   const handleNewsSync = async () => {
@@ -155,26 +138,10 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     setPresets(getSavedPresets());
+    // 1) ⚡ 첫 화면 접속 시: 로컬 DB에 저장된 시세, 지수, 뉴스, 공시 데이터를 0.01초 즉시 로딩
     loadAllData();
 
-    // 1) 📅 재무제표 동기화: 사용자가 접속했을 때 하루 1회 자동 동기화
-    const lastDartDate = localStorage.getItem('last_dart_sync_date');
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    if (lastDartDate !== today) {
-      triggerDartCollection().then((res) => {
-        if (res.success) {
-          localStorage.setItem('last_dart_sync_date', today);
-          loadAllData();
-        }
-      }).catch((e) => console.warn('Daily DART sync error:', e));
-    }
-
-    // 2) 📰 뉴스 & DART 공시 동기화: 화면 접속 시 즉시 최신 뉴스 68+건 병렬 수집
-    triggerNewsCollection()
-      .then(() => fetchNews().then(n => setNews(n)))
-      .catch((e) => console.warn('On-visit news sync error:', e));
-
-    // 3) ⏱️ 실시간 시세 동기화: 첫 화면 접속 시 즉시 1회 실행 + 접속 중 5분(300초)마다 자동 갱신
+    // 2) ⏱️ 장중 실시간 시세 업데이트: 첫 화면 접속 시 백그라운드로 1회 즉시 실행 + 접속 중 5분마다 자동 갱신
     triggerRealtimeCollection()
       .then(() => loadAllData())
       .catch((e) => console.warn('Initial price sync error:', e));
@@ -302,13 +269,14 @@ export const App: React.FC = () => {
           </button>
 
           <button
-            onClick={handleDartSync}
-            disabled={isDartSyncing}
+            onClick={handleNewsSync}
+            disabled={isNewsSyncing}
             className="btn btn-secondary"
             style={{ padding: '5px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-            title="금융감독원 DART에서 최신 분기/사업보고서 재무제표(매출, 영업이익, 순이익)를 동기화합니다."
+            title="실시간 주요 언론사 뉴스 및 DART 공시를 웹에서 새로 크롤링하여 DB에 갱신합니다."
           >
-            {isDartSyncing ? 'DART 수집 중...' : 'DART 재무 동기화'}
+            <RefreshCw size={12} className={isNewsSyncing ? 'animate-spin' : ''} />
+            {isNewsSyncing ? '뉴스 수집 중...' : '뉴스 & 공시 갱신'}
           </button>
 
           <button
@@ -386,8 +354,6 @@ export const App: React.FC = () => {
                 stocks={stocks}
                 quantMetrics={quantMetrics}
                 onSelectStock={handleSelectStock}
-                onRefreshNews={handleNewsSync}
-                isSyncingNews={isNewsSyncing}
               />
             )}
           </>

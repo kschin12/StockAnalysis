@@ -808,54 +808,62 @@ async function refreshAllRankingsAndSave(customConfig = null) {
     const allSelectedList = Array.from(selectedSymbolMap.values());
     console.log(`📊 합집합 필터링 완료: 총 ${allSelectedList.length}개 유니버스 종목 선정 (중복 제거됨)`);
 
-    // 5. 상세 시세 및 재무 지표 병렬 동기화
-    for (const item of allSelectedList) {
-      const q = await fetchDetailedStockMetrics(item.symbol) || 
-        (item.market === 'KRX' ? await fetchNaverQuote(item.symbol) : await fetchYahooQuote(item.symbol));
-      
-      if (q && q.price > 0) {
-        await dbRunAsync(
-          `INSERT INTO stocks (symbol, name, market, assetType, price, changeRate, volume, marketCap, per, pbr, roe, dividendYield, high52w, low52w, currency, updated_at) 
-           VALUES (?, ?, ?, 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
-           ON CONFLICT(symbol) DO UPDATE SET 
-           name = COALESCE(excluded.name, stocks.name),
-           price = excluded.price, 
-           changeRate = excluded.changeRate, 
-           volume = excluded.volume, 
-           marketCap = COALESCE(excluded.marketCap, stocks.marketCap),
-           per = COALESCE(excluded.per, stocks.per),
-           pbr = COALESCE(excluded.pbr, stocks.pbr),
-           roe = COALESCE(excluded.roe, stocks.roe),
-           dividendYield = COALESCE(excluded.dividendYield, stocks.dividendYield),
-           high52w = COALESCE(excluded.high52w, stocks.high52w),
-           low52w = COALESCE(excluded.low52w, stocks.low52w),
-           updated_at = excluded.updated_at`,
-          [
-            item.symbol,
-            item.name || q.name || item.symbol,
-            item.market,
-            q.price,
-            q.changeRate,
-            q.volume,
-            q.marketCap || null,
-            q.per || null,
-            q.pbr || null,
-            q.roe || null,
-            q.dividendYield || null,
-            q.high52w || null,
-            q.low52w || null,
-            item.market === 'KRX' ? 'KRW' : 'USD'
-          ]
-        );
-      }
-    }
-
-    // 6. DB 정돈: 조건에 해당하지 않는 과거 불필요 종목 제거 (관심종목은 완벽 보존)
+    // 5. DB 정돈: 조건에 해당하지 않는 과거 불필요 종목 즉시 제거 (관심종목은 완벽 보존)
     if (allSelectedList.length > 0) {
       const allowedSymbols = allSelectedList.map(s => s.symbol);
       const placeholders = allowedSymbols.map(() => '?').join(',');
       await dbRunAsync(`DELETE FROM stocks WHERE symbol NOT IN (${placeholders})`, allowedSymbols);
       console.log(`🧹 [Clean] 수집 조건 및 관심종목 총 ${allowedSymbols.length}개로 DB 정돈 완료!`);
+    }
+
+    // 6. 상세 시세 및 재무 지표 초고속 병렬 동기화 (청크 단위 병렬 처리)
+    const chunkSize = 25;
+    for (let i = 0; i < allSelectedList.length; i += chunkSize) {
+      const chunk = allSelectedList.slice(i, i + chunkSize);
+      await Promise.allSettled(chunk.map(async (item) => {
+        try {
+          const q = await fetchDetailedStockMetrics(item.symbol) || 
+            (item.market === 'KRX' ? await fetchNaverQuote(item.symbol) : await fetchYahooQuote(item.symbol));
+          
+          if (q && q.price > 0) {
+            await dbRunAsync(
+              `INSERT INTO stocks (symbol, name, market, assetType, price, changeRate, volume, marketCap, per, pbr, roe, dividendYield, high52w, low52w, currency, updated_at) 
+               VALUES (?, ?, ?, 'STOCK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+               ON CONFLICT(symbol) DO UPDATE SET 
+               name = COALESCE(excluded.name, stocks.name),
+               price = excluded.price, 
+               changeRate = excluded.changeRate, 
+               volume = excluded.volume, 
+               marketCap = COALESCE(excluded.marketCap, stocks.marketCap),
+               per = COALESCE(excluded.per, stocks.per),
+               pbr = COALESCE(excluded.pbr, stocks.pbr),
+               roe = COALESCE(excluded.roe, stocks.roe),
+               dividendYield = COALESCE(excluded.dividendYield, stocks.dividendYield),
+               high52w = COALESCE(excluded.high52w, stocks.high52w),
+               low52w = COALESCE(excluded.low52w, stocks.low52w),
+               updated_at = excluded.updated_at`,
+              [
+                item.symbol,
+                item.name || q.name || item.symbol,
+                item.market,
+                q.price,
+                q.changeRate,
+                q.volume,
+                q.marketCap || null,
+                q.per || null,
+                q.pbr || null,
+                q.roe || null,
+                q.dividendYield || null,
+                q.high52w || null,
+                q.low52w || null,
+                item.market === 'KRX' ? 'KRW' : 'USD'
+              ]
+            );
+          }
+        } catch (e) {
+          // ignore single item timeout
+        }
+      }));
     }
 
     // 7. 지수 및 환율 갱신

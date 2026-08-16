@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { NewsItem, MarketIndex, SectorPerf, Stock, QuantMetrics } from '../../types/stock';
-import { ExternalLink, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface NewsFeedProps {
   news: NewsItem[];
@@ -9,8 +9,6 @@ interface NewsFeedProps {
   stocks?: Stock[];
   quantMetrics?: QuantMetrics | null;
   onSelectStock: (symbol: string) => void;
-  onRefreshNews?: () => Promise<void>;
-  isSyncingNews?: boolean;
 }
 
 export const NewsFeed: React.FC<NewsFeedProps> = ({
@@ -18,9 +16,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   indices = [],
   sectors = [],
   stocks = [],
-  onSelectStock,
-  onRefreshNews,
-  isSyncingNews = false
+  onSelectStock
 }) => {
   const [filterType, setFilterType] = useState<'NEWS' | 'DISCLOSURE' | 'IMPORTANT' | 'ALL'>('NEWS');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -266,18 +262,6 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
               <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--color-brand)', fontWeight: 700 }}>
                 총 {filteredNews.length}건
               </span>
-              {onRefreshNews && (
-                <button
-                  onClick={onRefreshNews}
-                  disabled={isSyncingNews}
-                  className="btn btn-ghost"
-                  style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  title="최신 68+건 뉴스와 DART 공시를 실시간으로 즉시 다시 크롤링합니다."
-                >
-                  <RefreshCw size={12} className={isSyncingNews ? 'animate-spin' : ''} />
-                  {isSyncingNews ? '뉴스 수집 중...' : '뉴스 새로고침'}
-                </button>
-              )}
             </div>
           </div>
 
