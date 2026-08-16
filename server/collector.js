@@ -323,19 +323,87 @@ async function fetchStockCandles(symbol, count = 90) {
   }
 }
 
+// 국내 대표 지수 실시간 수집 (코스피, 코스닥)
+async function fetchNaverIndex(code) {
+  try {
+    const url = `https://polling.finance.naver.com/api/realtime/domestic/index/${code}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const s = data.datas?.[0];
+    if (!s) return null;
+
+    const price = parseFloat(String(s.closePrice).replace(/,/g, '')) || 0;
+    const compareSign = (s.compareToPreviousPrice?.code === '5' || s.compareToPreviousPrice?.text === '하락') ? -1 : 1;
+    const change = (parseFloat(String(s.compareToPreviousClosePrice).replace(/,/g, '')) || 0) * compareSign;
+    const changeRate = (parseFloat(s.fluctuationsRatio) || 0) * (change < 0 ? -1 : 1);
+
+    return {
+      code: code === 'KOSPI' ? '^KS11' : '^KQ11',
+      name: code === 'KOSPI' ? '코스피 (KOSPI)' : '코스닥 (KOSDAQ)',
+      price: Math.round(price * 100) / 100,
+      change: Math.round(change * 100) / 100,
+      changeRate: Math.round(changeRate * 100) / 100
+    };
+  } catch (e) {
+    console.warn(`[Collector] Naver index ${code} error:`, e.message);
+    return null;
+  }
+}
+
+// 국내 대표 지수 5일 스파크라인 수집 (네이버 금융 차트)
+async function fetchNaverIndexSparkline(code) {
+  try {
+    const url = `https://fchart.stock.naver.com/sise.nhn?symbol=${code}&timeframe=day&count=5&requestType=0`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(3000)
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const matches = [...xml.matchAll(/<item\s+data="([^"]+)"/g)];
+    const closes = [];
+    for (const m of matches) {
+      const parts = m[1].split('|');
+      const close = parseFloat(parts[4]);
+      if (!isNaN(close)) closes.push(Math.round(close * 100) / 100);
+    }
+    return closes;
+  } catch {
+    return [];
+  }
+}
+
 // 5. 주요 시장 지수 및 환율 실시간 업데이트
 async function updateMarketIndices() {
-  const indexMap = [
-    { yahooSym: '^KS11', code: '^KS11', name: '코스피 (KOSPI)' },
-    { yahooSym: '^KQ11', code: '^KQ11', name: '코스닥 (KOSDAQ)' },
+  const results = [];
+
+  // 1. 국내 지수 (코스피, 코스닥 - 네이버 증권 100% 공식 실시간 데이터)
+  for (const domestic of ['KOSPI', 'KOSDAQ']) {
+    const quote = await fetchNaverIndex(domestic);
+    if (quote && quote.price) {
+      const sparkline = await fetchNaverIndexSparkline(domestic);
+      const sparklineArr = sparkline.length > 0 ? sparkline : [quote.price];
+      await dbRunAsync(
+        `INSERT OR REPLACE INTO market_indices (code, name, value, change, changeRate, sparkline, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
+        [quote.code, quote.name, quote.price, quote.change, quote.changeRate, JSON.stringify(sparklineArr)]
+      );
+      results.push({ ...quote, sparkline: sparklineArr });
+    }
+  }
+
+  // 2. 해외 지수 및 환율 (S&P 500, 나스닥 종합, 원/달러 환율 - Yahoo Finance)
+  const globalIndexMap = [
     { yahooSym: '^GSPC', code: '^GSPC', name: 'S&P 500' },
     { yahooSym: '^IXIC', code: '^IXIC', name: '나스닥 종합' },
     { yahooSym: 'USDKRW=X', code: 'USDKRW=X', name: '원/달러 환율' }
   ];
 
-  const results = [];
-
-  for (const item of indexMap) {
+  for (const item of globalIndexMap) {
     const quote = await fetchYahooQuote(item.yahooSym);
     if (quote && quote.price) {
       const sparklineJson = JSON.stringify(quote.sparkline?.length > 0 ? quote.sparkline : [quote.price]);

@@ -407,13 +407,16 @@ export const StockChart: React.FC<StockChartProps> = ({
           </div>
 
           <div style={{ borderLeft: '1px solid var(--border-subtle)', paddingLeft: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>
                 {stock.currency === 'KRW' ? `₩${stock.price.toLocaleString()}` : `$${stock.price.toFixed(2)}`}
               </span>
-              <span className={`badge ${isUp ? 'badge-up' : 'badge-down'}`} style={{ fontSize: '0.8rem' }}>
+              <span className={`badge ${isUp ? 'badge-up' : 'badge-down'}`} style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                {isUp ? '+' : ''}{stock.changeRate.toFixed(2)}%
+                {stock.currency === 'KRW' 
+                  ? `${isUp ? '+' : ''}${Math.round(stock.price - (stock.changeRate !== -100 ? stock.price / (1 + stock.changeRate / 100) : stock.price)).toLocaleString()}원` 
+                  : `${isUp ? '+' : ''}$${Math.abs(stock.price - (stock.changeRate !== -100 ? stock.price / (1 + stock.changeRate / 100) : stock.price)).toFixed(2)}`
+                } ({isUp ? '+' : ''}{stock.changeRate.toFixed(2)}%)
               </span>
             </div>
           </div>

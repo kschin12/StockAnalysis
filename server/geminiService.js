@@ -42,8 +42,8 @@ class GeminiService {
 
 [작성 규칙]
 반드시 아래 형식 그대로 정확하게 출력하세요 (불필요한 수식어나 인사말 없이 내용만 작성):
-[요약] (핵심 사건, 실적 수치, 계약 내용 등 기사의 팩트를 정확히 1문장으로 요약)
-[고려사항] (투자자가 실질적으로 중점 확인해야 할 사항이나 리스크/모멘텀 등 투자 관점의 고려사항을 1문장으로 작성)
+[요약] (핵심 사건, 실적 수치, 계약 내용 등 기사의 팩트를 정확히 1문장으로 요약. 절대 중간에 글이 잘리거나 '..'로 끝나지 않도록 완전한 종결어미 문장으로 작성)
+[고려사항] (투자자가 실질적으로 중점 확인해야 할 사항이나 리스크/모멘텀 등 투자 관점의 고려사항을 완전한 1문장으로 작성)
 [중요도] (1~5 중 숫자 하나만 기재)
 [시그널] (긍정, 부정, 중립 중 택1)`;
 
@@ -59,10 +59,10 @@ class GeminiService {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 250
+              maxOutputTokens: 500
             }
           }),
-          signal: AbortSignal.timeout(6000)
+          signal: AbortSignal.timeout(8000)
         });
 
         if (!res.ok) continue;
@@ -81,8 +81,14 @@ class GeminiService {
           const impMatch = text.match(/\[중요도\]\s*([1-5])/i);
           const sigMatch = text.match(/\[시그널\]\s*(긍정|부정|중립|호재|악재)/i);
 
-          const summaryText = summaryMatch ? summaryMatch[1].replace(/^[0-9\.\-\s]+/, '').trim() : '';
-          const focusText = focusMatch ? focusMatch[1].replace(/^[0-9\.\-\s]+/, '').trim() : '';
+          let summaryText = summaryMatch ? summaryMatch[1].replace(/^[0-9\.\-\s]+/, '').trim() : '';
+          let focusText = focusMatch ? focusMatch[1].replace(/^[0-9\.\-\s]+/, '').trim() : '';
+
+          // 말줄임표나 잘린 문장 마침표 처리
+          summaryText = summaryText.replace(/\.{2,}$/, '').trim();
+          if (summaryText && !summaryText.endsWith('.')) summaryText += '.';
+          focusText = focusText.replace(/\.{2,}$/, '').trim();
+          if (focusText && !focusText.endsWith('.')) focusText += '.';
 
           if (summaryText && focusText) {
             summary = `${summaryText}\n• 고려사항: ${focusText}`;
