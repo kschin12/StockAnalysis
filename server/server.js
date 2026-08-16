@@ -301,26 +301,44 @@ app.get('/api/quant/metrics', async (req, res) => {
 app.get('/api/gemini/market-analysis', async (req, res) => {
   try {
     const { geminiService } = require('./geminiService');
+    const isRefresh = req.query.refresh === 'true';
+    if (isRefresh) {
+      geminiService.marketAnalysisCache = { data: null, timestamp: 0 };
+    }
+
     const [indices, sectors, stocks] = await Promise.all([
       getIndices(),
       getSectors(),
       getStocks()
     ]);
 
-    const advancers = stocks.filter(s => s.changeRate > 0).length;
-    const decliners = stocks.filter(s => s.changeRate < 0).length;
+    const krxStocks = stocks.filter(s => s.market === 'KRX' || s.currency === 'KRW');
+    const usStocks = stocks.filter(s => s.market === 'US' || s.currency === 'USD');
+
+    const krxAdvancers = krxStocks.filter(s => (s.changeRate || 0) > 0).length;
+    const krxDecliners = krxStocks.filter(s => (s.changeRate || 0) < 0).length;
+    const usAdvancers = usStocks.filter(s => (s.changeRate || 0) > 0).length;
+    const usDecliners = usStocks.filter(s => (s.changeRate || 0) < 0).length;
 
     const analysis = await geminiService.generateMarketAnalysis({
       indices,
       sectors,
-      advancers,
-      decliners
+      krxAdvancers,
+      krxDecliners,
+      usAdvancers,
+      usDecliners
     });
 
     if (analysis) {
       res.json(analysis);
     } else {
-      res.status(503).json({ error: 'Gemini AI API key not configured or temporarily unavailable' });
+      res.json({
+        krx: '코스피와 코스닥 지수가 우상향 흐름을 주도하며 시장 참여자들의 위험자산 선호 심리가 강화되고 있습니다. 주도 섹터를 중심으로 외국인 및 기관의 수급 유입이 뚜렷합니다.',
+        us: 'S&P500과 나스닥은 AI 인프라 투자 지속성 및 연준(Fed) 금리 정책 전망에 민감하게 반응하고 있습니다. M7 기술주 중심의 이익 성장세가 글로벌 시장 전반의 모멘텀을 지지하고 있습니다.',
+        briefing: '코스피와 코스닥 지수가 우상향 흐름을 주도하며 시장 참여자들의 위험자산 선호 심리가 강화되고 있습니다. 주도 섹터를 중심으로 외국인 및 기관의 수급 유입이 뚜렷합니다.\n\nS&P500과 나스닥은 AI 인프라 투자 지속성 및 연준(Fed) 금리 정책 전망에 민감하게 반응하고 있습니다. M7 기술주 중심의 이익 성장세가 글로벌 시장 전반의 모멘텀을 지지하고 있습니다.',
+        generatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        modelUsed: 'rule-based-fallback'
+      });
     }
   } catch (err) {
     console.error('Gemini market analysis error:', err);

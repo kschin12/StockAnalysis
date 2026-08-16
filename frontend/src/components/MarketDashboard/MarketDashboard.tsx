@@ -2,7 +2,7 @@ import React from 'react';
 import type { MarketIndex, SectorPerf, Stock } from '../../types/stock';
 import { IndexCard } from './IndexCard';
 import { SectorHeatmap } from './SectorHeatmap';
-import { AiMarketBriefing } from './AiMarketBriefing';
+import { GlobalMarketBriefing } from './GlobalMarketBriefing';
 
 interface MarketDashboardProps {
   indices: MarketIndex[];
@@ -42,11 +42,11 @@ export const MarketDashboard: React.FC<MarketDashboardProps> = ({
         ))}
       </div>
 
-      {/* Gemini AI 실시간 종합 시황 진단 브리핑 */}
-      <AiMarketBriefing />
-
       {/* Sector Heatmap */}
       <SectorHeatmap sectors={sectors} />
+
+      {/* 글로벌 시황 종합 브리핑 (국내 증시 & 글로벌 미국 증시 AI 심층 진단) */}
+      <GlobalMarketBriefing indices={indices} sectors={sectors} stocks={stocks} />
 
       {/* 2-Column: Momentum Leaders vs Risk Alert Stocks (좌우 높이 및 각 행 일치) */}
       <div style={{

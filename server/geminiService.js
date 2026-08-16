@@ -136,7 +136,7 @@ class GeminiService {
   }
 
   // 2. 국내외 시장 종합 시황 AI 퀀트 분석 (AI Market Diagnosis)
-  async generateMarketAnalysis({ indices = [], sectors = [], advancers = 0, decliners = 0, quantMetrics = null }) {
+  async generateMarketAnalysis({ indices = [], sectors = [], krxAdvancers = 0, krxDecliners = 0, usAdvancers = 0, usDecliners = 0 }) {
     const apiKey = this.getApiKey();
     if (!apiKey || apiKey.trim().length < 10) {
       return null;
@@ -148,26 +148,29 @@ class GeminiService {
       return this.marketAnalysisCache.data;
     }
 
-    const indicesSummary = indices.map(i => `${i.name}: ${i.currentPrice} (${i.changeRate > 0 ? '+' : ''}${i.changeRate}%)`).join(', ');
+    const indicesSummary = indices.map(i => `${i.name || i.code}: ${i.value || i.currentPrice} (${(i.changeRate || 0) > 0 ? '+' : ''}${i.changeRate || 0}%)`).join(', ');
     const sortedSectors = [...sectors].sort((a, b) => b.changeRate - a.changeRate);
     const topSectors = sortedSectors.slice(0, 3).map(s => `${s.name}(${s.changeRate > 0 ? '+' : ''}${s.changeRate}%)`).join(', ');
-    const bottomSectors = sortedSectors.slice(-3).reverse().map(s => `${s.name}(${s.changeRate > 0 ? '+' : ''}${s.changeRate}%)`).join(', ');
 
-    const prompt = `당신은 최고 수준의 주식 스트래티지스트입니다.
-현재 실시간 국내 및 글로벌 증시 데이터를 바탕으로 투자자를 위한 [시장 진단 및 투자 전략]을 작성해주세요.
+    const prompt = `당신은 최고 수준의 글로벌 주식 스트래티지스트입니다.
+현재 실시간 국내 및 글로벌 증시 데이터를 바탕으로 투자자를 위한 [국내 증시(KRX) 및 글로벌·미국 증시(US) 시황 브리핑]을 작성해주세요.
 
 [현재 시장 데이터]
-- 주요 지수: ${indicesSummary || 'KOSPI, KOSDAQ, S&P500, NASDAQ'}
-- 등락 종목 수: 상승 ${advancers}개 / 하락 ${decliners}개
-- 주도 강세 섹터: ${topSectors || '반도체, AI, 2차전지'}
-- 약세 부진 섹터: ${bottomSectors || '유틸리티, 필수소비재'}
+- 주요 지수: ${indicesSummary || '코스피, 코스닥, S&P 500, 나스닥 종합, 원/달러 환율'}
+- 국내 시장 등락: 상승 ${krxAdvancers}개 / 하락 ${krxDecliners}개
+- 미국 시장 등락: 상승 ${usAdvancers}개 / 하락 ${usDecliners}개
+- 주도 강세 섹터: ${topSectors || '반도체 & AI, 빅테크, 자동차'}
 
 [작성 가이드]
-아래 4개 항목을 명확하고 통찰력 있는 전문 한국어로 작성하세요:
-1. 🎯 [시장 진단 요약]: 현재 장세의 핵심 성격과 수급 특징 (2문장)
-2. 🚀 [주도 섹터 및 테마]: 오늘 시장을 이끄는 핵심 모멘텀 요인 (2문장)
-3. ⚠️ [시장 리스크 요인]: 금리, 환율, 수급 등 주의해야 할 거시 변수 (1~2문장)
-4. 💡 [오늘의 포트폴리오 전략]: 상승/하락 장세에 대응하는 실행 가능한 전략 (2문장)`;
+반드시 다음 JSON 형식으로만 응답하세요. 다른 설명이나 마크다운 백틱 없이 순수 JSON만 출력하세요:
+- "krx": 국내 증시(코스피/코스닥)의 지수 방향성, 수급 주체(외인/기관), 주도 섹터 흐름을 2~3문장의 완결된 문장으로 작성.
+- "us": 글로벌·미국 증시(S&P 500, 나스닥, 빅테크/AI, 금리/환율 매크로)의 주요 모멘텀과 시장 심리를 2~3문장의 완결된 문장으로 작성.
+- 절대 문장이 중간에 잘리거나 '..'로 끝나지 않아야 하며 온전한 마침표(.)로 끝나야 합니다.
+
+{
+  "krx": "코스피와 코스닥 지수가 우상향 흐름을 주도하며 시장 참여자들의 위험자산 선호 심리가 강화되고 있습니다. 주도 섹터를 중심으로 외국인 및 기관의 수급 유입이 뚜렷합니다.",
+  "us": "S&P500과 나스닥은 AI 인프라 투자 지속성 및 연준(Fed) 금리 정책 전망에 민감하게 반응하고 있습니다. M7 기술주 중심의 이익 성장세가 글로벌 시장 전반의 모멘텀을 지지하고 있습니다."
+}`;
 
     const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.1-flash-lite-preview', 'gemini-3.7-flash'];
 
@@ -181,7 +184,8 @@ class GeminiService {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 500
+              maxOutputTokens: 600,
+              responseMimeType: 'application/json'
             }
           }),
           signal: AbortSignal.timeout(8000)
@@ -192,13 +196,27 @@ class GeminiService {
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text && text.trim().length >= 20) {
-          const result = {
-            briefing: text.trim(),
-            generatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            modelUsed: m
-          };
-          this.marketAnalysisCache = { data: result, timestamp: now };
-          return result;
+          let parsed;
+          try {
+            parsed = JSON.parse(text.trim());
+          } catch {
+            const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            parsed = JSON.parse(cleanJson);
+          }
+
+          if (parsed && (parsed.krx || parsed.us)) {
+            const krxText = (parsed.krx || '').replace(/\.{2,}$/g, '.').trim();
+            const usText = (parsed.us || '').replace(/\.{2,}$/g, '.').trim();
+            const result = {
+              krx: krxText,
+              us: usText,
+              briefing: `${krxText}\n\n${usText}`,
+              generatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+              modelUsed: m
+            };
+            this.marketAnalysisCache = { data: result, timestamp: now };
+            return result;
+          }
         }
       } catch (err) {}
     }

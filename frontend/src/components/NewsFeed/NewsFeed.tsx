@@ -19,9 +19,6 @@ interface NewsFeedProps {
 
 export const NewsFeed: React.FC<NewsFeedProps> = ({
   news,
-  indices = [],
-  sectors = [],
-  stocks = [],
   onSelectStock,
   onNewsDeleted,
   initialSearch = ''
@@ -50,29 +47,6 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const pageSize = 12; // 테이블 1페이지당 12개 행
 
-  // --- 국내 및 미국 데이터 분리 ---
-  const krxStocks = stocks.filter(s => s.market === 'KRX' || s.currency === 'KRW');
-  const usStocks = stocks.filter(s => s.market === 'US' || s.currency === 'USD');
-
-  // 국내 지수 vs 미국 지수
-  const krxIndices = indices.filter(i => i.code.includes('KS') || i.code.includes('KQ') || i.name.includes('코스피') || i.name.includes('코스닥'));
-  const usIndices = indices.filter(i => !i.code.includes('KS') && !i.code.includes('KQ') && !i.name.includes('코스피') && !i.name.includes('코스닥'));
-
-  // 국내 등락 분포
-  const krxAdvancers = krxStocks.filter(s => s.changeRate > 0).length;
-  const krxDecliners = krxStocks.filter(s => s.changeRate < 0).length;
-  const krxUnchanged = krxStocks.filter(s => s.changeRate === 0).length;
-
-  // 미국 등락 분포
-  const usAdvancers = usStocks.filter(s => s.changeRate > 0).length;
-  const usDecliners = usStocks.filter(s => s.changeRate < 0).length;
-  const usUnchanged = usStocks.filter(s => s.changeRate === 0).length;
-
-  // 섹터 정렬 (주도 vs 약세)
-  const sortedSectors = [...sectors].sort((a, b) => b.changeRate - a.changeRate);
-  const leadingSectors = sortedSectors.slice(0, 3);
-  const laggingSectors = sortedSectors.slice(-3).reverse();
-
   // --- 드롭다운 선택용 고유 옵션 목록 ---
   const stockOptions = useMemo(() => {
     const set = new Set<string>();
@@ -80,7 +54,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
       const name = n.companyName || n.symbol;
       if (name) set.add(name);
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return Array.from(set).sort();
   }, [news]);
 
   const sourceOptions = useMemo(() => {
@@ -91,12 +65,13 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [news]);
 
-  // 문자열 HTML 엔티티 제거 헬퍼
-  const sanitizeText = (str: string = '') => {
-    return str
+  // --- 문자열 HTML 엔티티 제거 헬퍼 ---
+  const sanitizeText = (text: string = '') => {
+    if (!text) return '';
+    return text
+      .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/&nbsp;/g, ' ')
@@ -226,162 +201,8 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* ========================================================= */}
-      {/* 1. 글로벌 시황 종합 브리핑 (국내 증시 & 글로벌 시장 심층 분석) */}
-      {/* ========================================================= */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* 상단 헤더 */}
-        <div style={{
-          padding: '4px 0',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}>
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>글로벌 시황 종합 브리핑</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '2px' }}>
-              국내(KRX) 및 글로벌/미국(US) 시장의 수급, 주도 섹터, 거시경제 매크로 환경을 심층 분석합니다.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>실시간 데이터 기반 동기화</span>
-          </div>
-        </div>
-
-        {/* 2-Column: 국내 증시(KRX) 브리핑 vs 글로벌/미국 증시(US) 브리핑 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: '16px'
-        }}>
-          {/* 1. 국내 시장 (KRX) 심층 시황 브리핑 */}
-          <div className="glass-card" style={{
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            {/* 국내 헤더 & 지수 티커 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#93c5fd' }}>국내 증시 (KRX) 시황 브리핑</h3>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {krxIndices.map(idx => (
-                  <span key={idx.code} style={{
-                    fontSize: '0.75rem',
-                    color: idx.changeRate >= 0 ? 'var(--color-up)' : 'var(--color-down)',
-                    fontWeight: 600
-                  }}>
-                    {idx.name} {idx.changeRate >= 0 ? '+' : ''}{idx.changeRate}%
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* 국내 시장 등락 비율 바 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--color-up)' }}>상승 {krxAdvancers}</span>
-                <span style={{ color: 'var(--text-muted)' }}>보합 {krxUnchanged}</span>
-                <span style={{ color: 'var(--color-down)' }}>하락 {krxDecliners}</span>
-              </div>
-              <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255, 255, 255, 0.08)', overflow: 'hidden', display: 'flex' }}>
-                <div style={{ width: `${(krxAdvancers / Math.max(1, krxStocks.length)) * 100}%`, background: 'var(--color-up)' }} />
-                <div style={{ width: `${(krxUnchanged / Math.max(1, krxStocks.length)) * 100}%`, background: 'var(--text-muted)' }} />
-                <div style={{ width: `${(krxDecliners / Math.max(1, krxStocks.length)) * 100}%`, background: 'var(--color-down)' }} />
-              </div>
-            </div>
-
-            {/* 국내 핵심 시황 분석 텍스트 */}
-            <div style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.6 }}>
-              {krxAdvancers >= krxDecliners ? (
-                <p>
-                  코스피와 코스닥 지수가 우상향 흐름을 주도하며 시장 참여자들의 위험자산 선호 심리가 강화되고 있습니다. 주도 섹터를 중심으로 외국인 및 기관의 수급 유입이 뚜렷합니다.
-                </p>
-              ) : (
-                <p>
-                  대외 변수 및 환율 변동성으로 인해 일부 차익 실현 매물이 출회되고 있습니다. 펀더멘털이 견고한 저PBR 가치주와 실적 개선주 중심의 선별적 방어 전략이 유리합니다.
-                </p>
-              )}
-            </div>
-
-            {/* 국내 주도 섹터 태그 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              <span>주도 섹터:</span>
-              {leadingSectors.map(s => (
-                <span key={s.name} style={{ color: 'var(--color-up)', fontWeight: 600 }}>
-                  {s.name} (+{s.changeRate.toFixed(1)}%)
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. 글로벌/미국 시장 (US) 심층 시황 브리핑 */}
-          <div className="glass-card" style={{
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            {/* 미국 헤더 & 지수 티커 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#d8b4fe' }}>글로벌·미국 증시 (US) 브리핑</h3>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {usIndices.map(idx => (
-                  <span key={idx.code} style={{
-                    fontSize: '0.75rem',
-                    color: idx.changeRate >= 0 ? 'var(--color-up)' : 'var(--color-down)',
-                    fontWeight: 600
-                  }}>
-                    {idx.name} {idx.changeRate >= 0 ? '+' : ''}{idx.changeRate}%
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* 미국 시장 등락 비율 바 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--color-up)' }}>상승 {usAdvancers}</span>
-                <span style={{ color: 'var(--text-muted)' }}>보합 {usUnchanged}</span>
-                <span style={{ color: 'var(--color-down)' }}>하락 {usDecliners}</span>
-              </div>
-              <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255, 255, 255, 0.08)', overflow: 'hidden', display: 'flex' }}>
-                <div style={{ width: `${(usAdvancers / Math.max(1, usStocks.length)) * 100}%`, background: 'var(--color-up)' }} />
-                <div style={{ width: `${(usUnchanged / Math.max(1, usStocks.length)) * 100}%`, background: 'var(--text-muted)' }} />
-                <div style={{ width: `${(usDecliners / Math.max(1, usStocks.length)) * 100}%`, background: 'var(--color-down)' }} />
-              </div>
-            </div>
-
-            {/* 미국 핵심 시황 분석 텍스트 */}
-            <div style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.6 }}>
-              <p>
-                S&P500과 나스닥은 AI 인프라 투자 지속성 및 연준(Fed) 금리 정책 전망에 민감하게 반응하고 있습니다. M7 기술주 중심의 이익 성장세가 글로벌 시장 전반의 모멘텀을 지지하고 있습니다.
-              </p>
-            </div>
-
-            {/* 미국 약세 섹터 태그 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              <span>하락 섹터:</span>
-              {laggingSectors.map(s => (
-                <span key={s.name} style={{ color: 'var(--color-down)', fontWeight: 600 }}>
-                  {s.name} ({s.changeRate.toFixed(1)}%)
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 2. 실시간 뉴스 & DART 큐레이션 테이블 피드 */}
-      {/* ========================================================= */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {/* 상단 타이틀 및 일괄 삭제 */}
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* 상단 타이틀 및 일괄 삭제 */}
         <div style={{
           padding: '4px 0',
           display: 'flex',
@@ -832,7 +653,6 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
             </button>
           </div>
         )}
-      </div>
     </div>
   );
 };
