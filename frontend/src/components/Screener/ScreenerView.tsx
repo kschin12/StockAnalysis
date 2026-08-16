@@ -71,15 +71,14 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   const getCategoryBaseStocks = () => {
     // 1. 시장(Market) 분기 필터링
     let pool = stocks;
-    if (filters.market !== 'ALL') {
-      if (filters.market === 'US') {
-        pool = pool.filter(s => s.market === 'US' || s.currency === 'USD');
+    if (filters.market === 'US') {
+      pool = pool.filter(s => s.market === 'US' || s.currency === 'USD');
+    } else if (filters.market === 'KRX' || filters.market === 'KOSPI' || filters.market === 'KOSDAQ') {
+      pool = pool.filter(s => s.market === 'KRX' || s.currency === 'KRW');
+      if (filters.market === 'KOSDAQ') {
+        pool = pool.filter(s => KOSDAQ_SYMBOLS.has(s.symbol) || s.sector?.includes('코스닥') || s.name?.includes('스팩'));
       } else if (filters.market === 'KOSPI') {
-        pool = pool.filter(s => (s.market === 'KRX' || s.currency === 'KRW') && !KOSDAQ_SYMBOLS.has(s.symbol));
-      } else if (filters.market === 'KOSDAQ') {
-        pool = pool.filter(s => (s.market === 'KRX' || s.currency === 'KRW') && KOSDAQ_SYMBOLS.has(s.symbol));
-      } else if (filters.market === 'KRX') {
-        pool = pool.filter(s => s.market === 'KRX' || s.currency === 'KRW');
+        pool = pool.filter(s => !KOSDAQ_SYMBOLS.has(s.symbol));
       }
     }
 
@@ -87,12 +86,12 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
       return pool.filter(s => watchlist.includes(s.symbol));
     }
     if (activeCategory === 'market_cap') {
-      const sorted = [...pool].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+      const sorted = [...pool].sort((a, b) => (Number(b.marketCap) || 0) - (Number(a.marketCap) || 0));
       const topCount = Math.max(20, Math.ceil(sorted.length * 0.3));
       return sorted.slice(0, topCount);
     }
     if (activeCategory === 'volume') {
-      const sorted = [...pool].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      const sorted = [...pool].sort((a, b) => (Number(b.volume) || 0) - (Number(a.volume) || 0));
       const topCount = Math.max(20, Math.ceil(sorted.length * 0.3));
       return sorted.slice(0, topCount);
     }
@@ -109,36 +108,37 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
   const baseStocks = getCategoryBaseStocks();
   const filteredStocks = baseStocks.filter(s => {
-    // 1. Search Query (모든 탭 공통 적용)
+    // 1. Search Query (검색어가 입력되었을 때만 이름/코드 일치 검사)
     if (filters.searchQuery && filters.searchQuery.trim()) {
-      const q = filters.searchQuery.toLowerCase();
+      const q = filters.searchQuery.toLowerCase().trim();
       const matchName = s.name ? s.name.toLowerCase().includes(q) : false;
       const matchSymbol = s.symbol ? s.symbol.toLowerCase().includes(q) : false;
       if (!matchName && !matchSymbol) return false;
     }
 
-    // 2. Asset Type (주식 vs ETF)
-    if (filters.assetType !== 'ALL' && s.assetType !== filters.assetType) {
-      return false;
+    // 2. 카테고리 탭(급등주, 급락주, 시총상위, 거래량상위, 관심종목)에서는 상위 종목 100% 즉시 반환
+    if (activeCategory !== 'all') {
+      return true;
     }
 
-    // 3. 세부 정량 퀀트 지표 필터링 (전체 종목 커스텀 스크리닝 시 적용)
-    if (activeCategory === 'all') {
-      if (filters.maxPer !== '' && (s.per === null || s.per === undefined || s.per > Number(filters.maxPer))) {
-        return false;
-      }
-      if (filters.maxPbr !== '' && (s.pbr === null || s.pbr === undefined || s.pbr > Number(filters.maxPbr))) {
-        return false;
-      }
-      if (filters.minRoe !== '' && (s.roe === null || s.roe === undefined || s.roe < Number(filters.minRoe))) {
-        return false;
-      }
-      if (filters.minDividend !== '' && (s.dividendYield === null || s.dividendYield === undefined || s.dividendYield < Number(filters.minDividend))) {
-        return false;
-      }
-      if (filters.maxDebtRatio !== '' && (s.debtRatio !== undefined && s.debtRatio !== null && s.debtRatio > Number(filters.maxDebtRatio))) {
-        return false;
-      }
+    // 3. '전체 종목' 커스텀 스크리닝 시에만 자산타입 및 세부 정량 퀀트 지표 필터링
+    if (filters.assetType !== 'ALL' && s.assetType && s.assetType !== filters.assetType) {
+      return false;
+    }
+    if (filters.maxPer !== '' && s.per !== null && s.per !== undefined && s.per > Number(filters.maxPer)) {
+      return false;
+    }
+    if (filters.maxPbr !== '' && s.pbr !== null && s.pbr !== undefined && s.pbr > Number(filters.maxPbr)) {
+      return false;
+    }
+    if (filters.minRoe !== '' && (s.roe === null || s.roe === undefined || s.roe < Number(filters.minRoe))) {
+      return false;
+    }
+    if (filters.minDividend !== '' && (s.dividendYield === null || s.dividendYield === undefined || s.dividendYield < Number(filters.minDividend))) {
+      return false;
+    }
+    if (filters.maxDebtRatio !== '' && s.debtRatio !== null && s.debtRatio !== undefined && s.debtRatio > Number(filters.maxDebtRatio)) {
+      return false;
     }
 
     return true;
