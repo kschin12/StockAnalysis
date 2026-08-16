@@ -607,16 +607,47 @@ async function searchLatestNewsForStock(symbol, companyName) {
   });
 }
 
-// 전체 실시간 뉴스 & 공시 동기화 실행 함수 (초고속 병렬 실행)
+// 5. 사용자의 관심종목(Watchlist) 전 종목 뉴스 및 DART 공시 필수 자동 수집
+async function fetchWatchlistNewsAndDisclosures() {
+  const watchlistRows = await new Promise((resolve) => {
+    db.all('SELECT symbol, name FROM watchlist', (err, rows) => {
+      if (err) return resolve([]);
+      resolve(rows || []);
+    });
+  });
+
+  if (watchlistRows.length === 0) return 0;
+  let totalAdded = 0;
+
+  const wlPromises = watchlistRows.map(async (st) => {
+    try {
+      const items = await searchLatestNewsForStock(st.symbol, st.name);
+      return items.length;
+    } catch {
+      return 0;
+    }
+  });
+
+  const results = await Promise.allSettled(wlPromises);
+  for (const r of results) {
+    if (r.status === 'fulfilled') totalAdded += r.value;
+  }
+  console.log(`⭐ 관심종목 (${watchlistRows.length}개 종목) 전용 뉴스/공시 자동 수집 완료: ${totalAdded}건`);
+  return totalAdded;
+}
+
+// 전체 실시간 뉴스 & 공시 동기화 실행 함수 (초고속 병렬 실행 + 관심종목 필수 포함)
 async function syncAllRealNews() {
-  console.log('🔄 실시간 실제 뉴스 및 공시 초고속 병렬 수집 시작...');
-  const [krCount, usCount, dartCount] = await Promise.all([
+  console.log('🔄 실시간 실제 뉴스, 공시 및 관심종목 초고속 병렬 수집 시작...');
+  const [krCount, usCount, dartCount, wlCount] = await Promise.all([
     fetchLiveKoreanNews(),
     fetchLiveUsNews(),
-    fetchLiveDartDisclosures()
+    fetchLiveDartDisclosures(),
+    fetchWatchlistNewsAndDisclosures()
   ]);
-  console.log(`✅ 실시간 뉴스 수집 완료: 국내 ${krCount}건, 미국 ${usCount}건, DART ${dartCount}건 (총 ${krCount + usCount + dartCount}건)`);
-  return { krCount, usCount, dartCount, total: krCount + usCount + dartCount };
+  const total = krCount + usCount + dartCount + (wlCount || 0);
+  console.log(`✅ 실시간 뉴스 수집 완료: 국내 ${krCount}건, 미국 ${usCount}건, DART ${dartCount}건, 관심종목 ${wlCount}건 (총 ${total}건)`);
+  return { krCount, usCount, dartCount, wlCount, total };
 }
 
 module.exports = {
@@ -624,6 +655,7 @@ module.exports = {
   fetchLiveKoreanNews,
   fetchLiveUsNews,
   fetchLiveDartDisclosures,
+  fetchWatchlistNewsAndDisclosures,
   searchLatestNewsForStock,
   analyzeImportance,
   summarizeRealContent
