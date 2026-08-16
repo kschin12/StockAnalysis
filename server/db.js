@@ -14,6 +14,8 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
     console.error('❌ SQLite 연결 실패:', err.message);
   } else {
     console.log('✅ SQLite 데이터베이스 연결 성공:', DB_PATH);
+    db.configure('busyTimeout', 15000);
+    db.run('PRAGMA journal_mode = WAL;');
     initTablesAndSeed();
   }
 });
