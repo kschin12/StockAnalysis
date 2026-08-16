@@ -211,13 +211,23 @@ async function fetchLiveKoreanNews() {
     const buf = await res.arrayBuffer();
     const html = iconv.decode(buf);
 
-    const matches = [...html.matchAll(/<dd[^>]*class="articleSubject"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
+    const dlMatches = [...html.matchAll(/<dl[^>]*>([\s\S]*?)<\/dl>/gi)];
 
     const parsedArticles = [];
-    for (const m of matches) {
-      const href = m[1];
-      const fullTitle = m[2].replace(/<[^>]+>/g, '').trim();
+    for (const dl of dlMatches) {
+      const content = dl[1];
+      const subjectMatch = content.match(/<dd[^>]*class="articleSubject"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+      if (!subjectMatch) continue;
+
+      const href = subjectMatch[1];
+      const fullTitle = subjectMatch[2].replace(/<[^>]+>/g, '').trim();
       if (!fullTitle) continue;
+
+      const pressMatch = content.match(/<span[^>]*class="press"[^>]*>([\s\S]*?)<\/span>/i);
+      const wdateMatch = content.match(/<span[^>]*class="wdate"[^>]*>([\s\S]*?)<\/span>/i);
+
+      const sourceName = pressMatch ? pressMatch[1].replace(/<[^>]+>/g, '').trim() : '네이버증권';
+      const realPublishedDate = wdateMatch ? wdateMatch[1].trim().substring(0, 16) : new Date().toISOString().replace('T', ' ').substring(0, 16);
 
       const offMatch = href.match(/office_id=([0-9]+)/);
       const artMatch = href.match(/article_id=([0-9]+)/);
@@ -242,7 +252,6 @@ async function fetchLiveKoreanNews() {
       const id = 'kr_' + (artMatch ? `${offMatch[1]}_${artMatch[1]}` : Buffer.from(fullTitle).toString('base64').substring(0, 16));
       const summary = `${companyName} 및 국내 증시 실시간 언론 보도입니다. 상세 내용은 출처 원문 기사를 통해 확인하시기 바랍니다.`;
       const imp = analyzeImportance(fullTitle, summary, false);
-      const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
       parsedArticles.push({
         id,
@@ -250,8 +259,8 @@ async function fetchLiveKoreanNews() {
         companyName,
         title: fullTitle,
         summary,
-        source: '네이버증권',
-        date: dateStr,
+        source: sourceName,
+        date: realPublishedDate,
         url: directUrl,
         sentiment: 'positive',
         isDisclosure: 0,
@@ -326,7 +335,7 @@ async function fetchLiveUsNews() {
 
           const rawTitle = titleMatch ? titleMatch[1].trim() : '';
           const link = linkMatch ? linkMatch[1].trim() : '';
-          const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+          const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().replace('T', ' ').substring(0, 16);
 
           if (!rawTitle || !link) continue;
 

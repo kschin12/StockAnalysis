@@ -197,6 +197,42 @@ app.post('/api/collect/news', async (req, res) => {
   }
 });
 
+// 8-3. 한국투자증권 (KIS) Open API 계좌 상태, 실시간 잔고 및 주문
+const { kisService } = require('./kisService');
+
+app.get('/api/kis/status', (req, res) => {
+  try {
+    const status = kisService.getStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/kis/balance', async (req, res) => {
+  try {
+    const balance = await kisService.getAccountBalance();
+    res.json(balance);
+  } catch (err) {
+    console.error('KIS balance error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/kis/order', async (req, res) => {
+  try {
+    const { symbol, type, quantity, price, orderType } = req.body;
+    if (!symbol || !quantity) {
+      return res.status(400).json({ error: '종목코드(symbol)와 수량(quantity)은 필수입니다.' });
+    }
+    const result = await kisService.sendOrder({ symbol, type, quantity, price, orderType });
+    res.json(result);
+  } catch (err) {
+    console.error('KIS order error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 8-2. DB 데이터 내용 초기화 및 신규 클라우드 라이브 데이터 수집 (테이블 구조 유지)
 app.post('/api/admin/reset-data', async (req, res) => {
   try {

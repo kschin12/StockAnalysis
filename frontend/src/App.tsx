@@ -4,10 +4,11 @@ import { MarketDashboard } from './components/MarketDashboard/MarketDashboard';
 import { ScreenerView } from './components/Screener/ScreenerView';
 import { StockChart } from './components/ChartView/StockChart';
 import { NewsFeed } from './components/NewsFeed/NewsFeed';
+import { KisAccountModal } from './components/Kis/KisAccountModal';
 import type { FilterState, CustomPreset, Stock, MarketIndex, SectorPerf, NewsItem, QuantMetrics } from './types/stock';
 import { getSavedPresets, saveCustomPreset, deleteCustomPreset, getWatchlist, toggleWatchlist } from './utils/storage';
 import { fetchMarketIndices, fetchSectors, fetchStocks, fetchNews, fetchQuantMetrics, triggerRealtimeCollection, triggerNewsCollection } from './api/stockApi';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ShieldCheck } from 'lucide-react';
 
 const INITIAL_FILTERS: FilterState = {
   market: 'ALL',
@@ -78,6 +79,7 @@ export const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
+  const [isKisModalOpen, setIsKisModalOpen] = useState<boolean>(false);
 
   const loadAllData = useCallback(async () => {
     setIsRefreshing(true);
@@ -271,6 +273,26 @@ export const App: React.FC = () => {
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
+            onClick={() => setIsKisModalOpen(true)}
+            className="btn btn-secondary"
+            style={{
+              padding: '5px 12px',
+              fontSize: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              borderColor: 'rgba(59, 130, 246, 0.5)',
+              background: 'rgba(59, 130, 246, 0.12)',
+              color: '#60a5fa',
+              fontWeight: 600
+            }}
+            title="한국투자증권 Open API를 통해 실시간 계좌 잔고, 수익률 및 원클릭 주문을 실행합니다."
+          >
+            <ShieldCheck size={13} />
+            한투 실계좌 연동
+          </button>
+
+          <button
             onClick={handleRealtimeCollect}
             disabled={isCollecting}
             className="btn btn-primary"
@@ -394,6 +416,13 @@ export const App: React.FC = () => {
           </p>
         </div>
       </footer>
+
+      {/* KIS Open API 실계좌 연동 모달 */}
+      <KisAccountModal
+        isOpen={isKisModalOpen}
+        onClose={() => setIsKisModalOpen(false)}
+        defaultSymbol={selectedStock.symbol}
+      />
     </div>
   );
 };
