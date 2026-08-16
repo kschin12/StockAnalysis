@@ -272,28 +272,28 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
               className={`btn ${filterType === 'NEWS' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.78rem', padding: '6px 14px', fontWeight: 700 }}
             >
-              📰 최신 뉴스
+              최신 뉴스
             </button>
             <button
               onClick={() => setFilterType('DISCLOSURE')}
               className={`btn ${filterType === 'DISCLOSURE' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.78rem', padding: '6px 14px', fontWeight: 700 }}
             >
-              📋 DART 전자공시
+              DART 공시
             </button>
             <button
               onClick={() => setFilterType('IMPORTANT')}
               className={`btn ${filterType === 'IMPORTANT' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              ⭐ 핵심 중요만
+              중요 뉴스/공시
             </button>
             <button
               onClick={() => setFilterType('ALL')}
               className={`btn ${filterType === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              전체 보기
+              전체
             </button>
           </div>
         </div>

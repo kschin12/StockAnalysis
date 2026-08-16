@@ -480,6 +480,7 @@ async function searchLatestNewsForStock(symbol, companyName) {
   const collectedItems = [];
 
   if (isKr) {
+    // 1) 국내 종목 DART 공시 수집 (최대 5건)
     try {
       const noticeUrl = `https://finance.naver.com/item/news_notice.naver?code=${symbol}`;
       const res = await fetch(noticeUrl, {
@@ -493,7 +494,7 @@ async function searchLatestNewsForStock(symbol, companyName) {
 
         let addedCount = 0;
         for (const tr of trMatches) {
-          if (addedCount >= 6) break;
+          if (addedCount >= 5) break;
           const content = tr[1];
           if (!content.includes('news_notice_read')) continue;
           const noMatch = content.match(/news_notice_read\.naver\?no=([0-9]+)&(?:amp;)?code=([0-9A-Za-z]+)/i);
@@ -530,6 +531,62 @@ async function searchLatestNewsForStock(symbol, companyName) {
       }
     } catch (err) {
       console.warn(`[searchLatestNews] DART notice error for ${symbol}:`, err.message);
+    }
+
+    // 2) 국내 종목 실시간 언론 보도 뉴스 수집 (최대 5건)
+    try {
+      const query = encodeURIComponent(`${name} when:5d`);
+      const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=ko&gl=KR&ceid=KR:ko`;
+      const res = await fetch(rssUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        signal: AbortSignal.timeout(4000)
+      });
+      if (res.ok) {
+        const xml = await res.text();
+        const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+
+        for (const it of items.slice(0, 5)) {
+          const titleMatch = it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+          const linkMatch = it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
+          const pubDateMatch = it.match(/<pubDate>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/pubDate>/);
+          const sourceMatch = it.match(/<source[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/source>/);
+
+          let fullTitle = (titleMatch ? titleMatch[1] : '').replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+          const link = (linkMatch ? linkMatch[1] : '#').trim();
+          const pubDate = pubDateMatch ? new Date(pubDateMatch[1]).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().substring(0, 16);
+          let sourceName = (sourceMatch ? sourceMatch[1] : '국내언론').replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+
+          if (fullTitle.includes(' - ')) {
+            const parts = fullTitle.split(' - ');
+            sourceName = parts[parts.length - 1].trim();
+            fullTitle = parts.slice(0, -1).join(' - ').trim();
+          }
+
+          fullTitle = cleanHtmlText(fullTitle, '');
+          if (!fullTitle) continue;
+
+          const summary = `${name} 관련 최신 언론 보도입니다. 상세 내용은 출처 원문 기사를 통해 확인하시기 바랍니다.`;
+          const importance = analyzeImportance(fullTitle, summary, false);
+          const sentiment = fullTitle.includes('상승') || fullTitle.includes('호실적') || fullTitle.includes('돌파') ? 'positive' : fullTitle.includes('하락') || fullTitle.includes('우려') ? 'negative' : 'neutral';
+          const id = `news_${symbol}_${Math.abs(hashString(link + fullTitle))}`;
+
+          collectedItems.push({
+            id,
+            symbol,
+            companyName: name,
+            title: fullTitle,
+            summary,
+            source: sourceName,
+            date: pubDate,
+            url: link,
+            sentiment,
+            isDisclosure: 0,
+            importance
+          });
+        }
+      }
+    } catch (err) {
+      console.warn(`[searchLatestNews] KR general news error for ${name}:`, err.message);
     }
   } else {
     try {

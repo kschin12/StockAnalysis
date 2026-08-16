@@ -692,7 +692,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                     transition: 'all 0.15s'
                   }}
                 >
-                  📰 최신 뉴스 ({newsOnly.length})
+                  최신 뉴스 ({newsOnly.length})
                 </button>
                 <button
                   onClick={() => setChartNewsTab('DISCLOSURE')}
@@ -708,7 +708,7 @@ export const StockChart: React.FC<StockChartProps> = ({ stock, news, allStocks, 
                     transition: 'all 0.15s'
                   }}
                 >
-                  📋 DART 공시 ({disclosureOnly.length})
+                  DART 공시 ({disclosureOnly.length})
                 </button>
                 <button
                   onClick={() => setChartNewsTab('ALL')}
